@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#FF8A00" />
+  <title>FitFlow</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+
+    <!-- LOGIN -->
+    <main id="screen-login" class="screen screen-login active">
+      <section class="login-card">
+        <div class="brand">
+          <div class="brand-mark">☀</div>
+          <div>
+            <h1>FitFlow</h1>
+            <p>Bouge. Progresse. Rayonne.</p>
+          </div>
+        </div>
+
+        <div class="hero-illustration" aria-hidden="true">
+          <div class="sun"></div>
+          <div class="mountain mountain-1"></div>
+          <div class="mountain mountain-2"></div>
+          <div class="walker">🚶‍♀️</div>
+        </div>
+
+        <button id="btn-google" class="btn btn-secondary wide">
+          <span class="google-dot">G</span>
+          Continuer avec Google
+        </button>
+
+        <p id="login-note" class="muted center small">
+          En continuant, tu acceptes nos conditions d’utilisation.
+        </p>
+      </section>
+    </main>
+
+    <!-- MAIN APP -->
+    <main id="screen-app" class="screen">
+      <section class="phone">
+
+        <section id="view-dashboard" class="view active">
+          <header class="topbar">
+            <div>
+              <h2>Bonjour <span id="user-firstname">Laeti</span> ☀️</h2>
+              <p>Prête à faire de cette journée une bonne journée !</p>
+            </div>
+            <button id="btn-signout-top" class="icon-btn" title="Déconnexion">🔔</button>
+          </header>
+
+          <article class="weight-card">
+            <div class="row between">
+              <span>Poids actuel</span>
+              <span>⌄</span>
+            </div>
+            <div class="weight-big"><span id="dash-current-weight">79,5</span> kg</div>
+            <div class="row between small">
+              <span>Objectif : <span id="dash-target-weight">65,0</span> kg</span>
+              <span id="dash-weight-left">-14,5 kg</span>
+            </div>
+            <div class="progress"><div id="dash-progress" class="progress-fill"></div></div>
+          </article>
+
+          <h3>Cette semaine</h3>
+          <div class="grid-2">
+            <article class="metric-card">
+              <span class="metric-icon">🚶</span>
+              <p>Distance</p>
+              <strong id="week-distance">0 km</strong>
+              <em id="week-distance-trend">↑ 0%</em>
+            </article>
+            <article class="metric-card">
+              <span class="metric-icon">👣</span>
+              <p>Pas</p>
+              <strong id="week-steps">0</strong>
+              <em id="week-steps-trend">↑ 0%</em>
+            </article>
+            <article class="metric-card">
+              <span class="metric-icon">🔥</span>
+              <p>Calories actives</p>
+              <strong id="week-calories">0</strong>
+              <em id="week-calories-trend">↑ 0%</em>
+            </article>
+            <article class="metric-card">
+              <span class="metric-icon">🏋️</span>
+              <p>Séances muscu</p>
+              <strong id="week-strength">0</strong>
+              <em id="week-strength-trend">↑ 0%</em>
+            </article>
+          </div>
+
+          <article class="coach-card">
+            <button class="close-card">×</button>
+            <strong>Message du coach</strong>
+            <p>Régularité + patience = transformation. Tu es sur la bonne voie 💪</p>
+          </article>
+        </section>
+
+        <section id="view-add" class="view">
+          <header class="simple-header">
+            <h2>Que veux-tu ajouter ?</h2>
+          </header>
+
+          <div class="choice-list">
+            <button class="choice-card peach" data-open="walk-form">
+              <span class="choice-icon">🚶</span>
+              <span>
+                <strong>Marche / Cardio</strong>
+                <em>Ajoute une séance de marche ou cardio</em>
+              </span>
+              <b>›</b>
+            </button>
+            <button class="choice-card green" data-open="weight-form">
+              <span class="choice-icon">⚖️</span>
+              <span>
+                <strong>Poids</strong>
+                <em>Enregistre ton poids du jour</em>
+              </span>
+              <b>›</b>
+            </button>
+            <button class="choice-card beige" data-open="strength-form">
+              <span class="choice-icon">🏋️</span>
+              <span>
+                <strong>Musculation</strong>
+                <em>Ajoute une séance de musculation</em>
+              </span>
+              <b>›</b>
+            </button>
+            <button class="choice-card yellow" data-open="measure-form">
+              <span class="choice-icon">📏</span>
+              <span>
+                <strong>Mensurations</strong>
+                <em>Enregistre tes mensurations</em>
+              </span>
+              <b>›</b>
+            </button>
+          </div>
+        </section>
+
+        <section id="view-walk-form" class="view">
+          <header class="form-header">
+            <button class="back-btn" data-back="add">‹</button>
+            <h2>Nouvelle séance de marche</h2>
+          </header>
+
+          <form id="walk-form" class="form-card">
+            <label>Date
+              <input name="date" type="date" required />
+            </label>
+            <label>Distance
+              <input name="distance" type="number" min="0" step="0.01" placeholder="4,07 km" required />
+            </label>
+            <label>Durée
+              <input name="duration" type="number" min="1" step="1" placeholder="82 min" required />
+            </label>
+            <label>Pente
+              <select name="incline">
+                <option value="0">0 %</option>
+                <option value="1.29">1,29 %</option>
+                <option value="5.24">Max / 5,24 %</option>
+              </select>
+            </label>
+            <label>Bras appuyés
+              <select name="arms">
+                <option value="none">Non</option>
+                <option value="partial">Partiel (-15%)</option>
+                <option value="full">Oui (-30%)</option>
+              </select>
+            </label>
+            <label class="textarea-label">Commentaire <span>(optionnel)</span>
+              <textarea name="comment" maxlength="100" placeholder="Canicule, avant muscu…"></textarea>
+              <small><span id="walk-comment-count">0</span>/100</small>
+            </label>
+            <button class="btn btn-primary wide" type="submit">Enregistrer la séance</button>
+          </form>
+        </section>
+
+        <section id="view-summary" class="view">
+          <article class="summary-card">
+            <div class="confetti">✨ ✦ ✨</div>
+            <div class="trophy">🏆</div>
+            <h2>Belle séance ! 🔥</h2>
+            <p>Tu peux être fière de toi</p>
+
+            <dl id="summary-list" class="summary-list"></dl>
+
+            <button class="btn btn-primary wide" data-nav="walks">Voir mes séances</button>
+          </article>
+        </section>
+
+        <section id="view-walks" class="view">
+          <header class="tab-header">
+            <button class="back-btn" data-nav="dashboard">‹</button>
+            <h2>Mes séances de marche</h2>
+          </header>
+
+          <div class="tabs">
+            <button class="tab active" data-tab="walk-list">Liste</button>
+            <button class="tab" data-tab="walk-charts">Graphiques</button>
+          </div>
+
+          <section id="walk-list" class="tab-panel active">
+            <div id="walk-list-items" class="history-list"></div>
+            <button id="btn-filter" class="btn btn-primary mini">☰ Filtrer</button>
+          </section>
+
+          <section id="walk-charts" class="tab-panel">
+            <article class="chart-card">
+              <div class="row between">
+                <strong>7 derniers jours</strong>
+                <span class="muted">⌄</span>
+              </div>
+              <div id="distance-bars" class="bar-chart"></div>
+              <div class="chart-footer">Distance (km) <span id="distance-total"></span></div>
+            </article>
+
+            <article class="chart-card">
+              <div id="calorie-bars" class="bar-chart"></div>
+              <div class="chart-footer">Calories actives <span id="calorie-total"></span></div>
+            </article>
+          </section>
+        </section>
+
+        <section id="view-weight" class="view">
+          <header class="tab-header">
+            <button class="back-btn" data-nav="dashboard">‹</button>
+            <h2>Mon poids</h2>
+          </header>
+
+          <div class="tabs">
+            <button class="tab active" data-tab="weight-chart-panel">Graphique</button>
+            <button class="tab" data-tab="weight-list-panel">Liste</button>
+          </div>
+
+          <section id="weight-chart-panel" class="tab-panel active">
+            <article class="chart-card">
+              <div class="row between">
+                <strong>3 mois</strong>
+                <span class="muted">⌄</span>
+              </div>
+              <div class="mini-label">Poids (kg) <span id="weight-delta"></span></div>
+              <svg id="weight-line" viewBox="0 0 320 180" role="img" aria-label="Evolution du poids"></svg>
+            </article>
+
+            <article class="weight-mini-card">
+              <div>
+                <span>Poids actuel</span>
+                <strong><span id="weight-current">79,5</span> kg</strong>
+              </div>
+              <div>
+                <span>Objectif</span>
+                <strong><span id="weight-target">65,0</span> kg</strong>
+              </div>
+              <div class="progress"><div id="weight-progress" class="progress-fill"></div></div>
+            </article>
+          </section>
+
+          <section id="weight-list-panel" class="tab-panel">
+            <div id="weight-list-items" class="history-list"></div>
+          </section>
+        </section>
+
+        <section id="view-weight-form" class="view">
+          <header class="form-header">
+            <button class="back-btn" data-back="add">‹</button>
+            <h2>Nouveau poids</h2>
+          </header>
+
+          <form id="weight-form" class="form-card">
+            <label>Date
+              <input name="date" type="date" required />
+            </label>
+            <label>Poids (kg)
+              <input name="weight" type="number" min="30" step="0.1" placeholder="79,5" required />
+            </label>
+            <label class="textarea-label">Commentaire <span>(optionnel)</span>
+              <textarea name="comment" maxlength="100" placeholder="Comment tu te sens ?"></textarea>
+              <small><span id="weight-comment-count">0</span>/100</small>
+            </label>
+            <button class="btn btn-primary wide" type="submit">Enregistrer</button>
+          </form>
+        </section>
+
+        <section id="view-settings" class="view">
+          <header class="form-header">
+            <button class="back-btn" data-nav="dashboard">‹</button>
+            <h2>Paramètres</h2>
+          </header>
+
+          <article class="settings-card">
+            <h3>Mes informations</h3>
+            <dl>
+              <div><dt>Objectif poids</dt><dd><span id="settings-target">65,0</span> kg</dd></div>
+              <div><dt>Poids de départ</dt><dd><span id="settings-start">105,0</span> kg</dd></div>
+              <div><dt>Taille</dt><dd><span id="settings-height">1,63</span> m</dd></div>
+              <div><dt>Date de départ</dt><dd><span id="settings-date">01/01/2026</span></dd></div>
+            </dl>
+          </article>
+
+          <article class="settings-card">
+            <h3>Réglages marche</h3>
+            <dl>
+              <div><dt>Foulée</dt><dd><span id="settings-step">0,56</span> m</dd></div>
+              <div><dt>Bras appuyés</dt><dd>-15 % / -30 %</dd></div>
+              <div><dt>Pentes disponibles</dt><dd>0 % / 1,29 % / 5,24 %</dd></div>
+            </dl>
+          </article>
+
+          <article class="settings-card">
+            <h3>Compte</h3>
+            <button id="btn-signout" class="link-danger">Déconnexion ↪</button>
+          </article>
+        </section>
+
+        <nav class="bottom-nav">
+          <button data-nav="dashboard" class="active">⌂<span>Accueil</span></button>
+          <button data-nav="add">＋<span>Ajouter</span></button>
+          <button data-nav="walks">🚶<span>Marche</span></button>
+          <button data-nav="weight">▣<span>Poids</span></button>
+          <button data-nav="settings">⚙<span>Plus</span></button>
+        </nav>
+
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
