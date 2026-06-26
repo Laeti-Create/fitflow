@@ -53,21 +53,30 @@
             <button id="btn-signout-top" class="icon-btn" title="Déconnexion">🔔</button>
           </header>
 
-          <article class="weight-card">
-            <div class="row between">
-              <span>Poids actuel</span>
-              <span>⌄</span>
-            </div>
-            <div class="weight-big"><span id="dash-current-weight">79,5</span> kg</div>
-            <div class="row between small">
-              <span>Objectif : <span id="dash-target-weight">65,0</span> kg</span>
-              <span id="dash-weight-left">-14,5 kg</span>
-            </div>
-            <div class="progress"><div id="dash-progress" class="progress-fill"></div></div>
-          </article>
+<article class="motivation-card">
+  <div class="motivation-icon">☀️</div>
+  <div>
+    <strong id="motivation-title">Objectif du jour</strong>
+    <p id="motivation-text">Chaque pas te rapproche de ta meilleure version.</p>
+  </div>
+</article>
+
+<h3>Ta semaine jusqu’ici</h3>
 
           <h3>Cette semaine</h3>
           <div class="grid-2">
+            <article class="weight-card compact-weight">
+  <div class="row between">
+    <span>Poids actuel</span>
+    <span>⚖️</span>
+  </div>
+  <div class="weight-big compact"><span id="dash-current-weight">79,5</span> kg</div>
+  <div class="row between small">
+    <span>Objectif : <span id="dash-target-weight">65,0</span> kg</span>
+    <span id="dash-weight-left">-14,5 kg</span>
+  </div>
+  <div class="progress"><div id="dash-progress" class="progress-fill"></div></div>
+</article>
             <article class="metric-card">
               <span class="metric-icon">🚶</span>
               <p>Distance</p>
