@@ -357,6 +357,21 @@ function renderDashboard() {
   const steps = weekWalks.reduce((sum, walk) => sum + Number(walk.steps || 0), 0);
   const calories = weekWalks.reduce((sum, walk) => sum + Number(walk.calories || 0), 0);
 
+  let motivation = "Chaque pas te rapproche de ta meilleure version.";
+
+if (distance >= 20 && weekStrength.length >= 2) {
+  motivation = "Semaine solide : tu combines cardio, force et régularité 🔥";
+} else if (distance >= 10) {
+  motivation = "Belle régularité sur la marche, continue comme ça 🌿";
+} else if (weekStrength.length >= 2) {
+  motivation = "Tes séances muscu construisent ta force, une répétition après l’autre 💪";
+} else if (steps >= 20000) {
+  motivation = "Tes pas s’additionnent, et ta progression aussi ✨";
+}
+
+const motivationText = qs("#motivation-text");
+if (motivationText) motivationText.textContent = motivation;
+  
   qs("#week-distance").textContent = `${fmtNumber(distance, 1)} km`;
   qs("#week-steps").textContent = fmtInt(steps);
   qs("#week-calories").textContent = fmtInt(calories);
