@@ -428,7 +428,17 @@ function render() {
 }
 
 function bindEvents() {
+  let googleLoginInProgress = false;
+
   qs("#btn-google").addEventListener("click", async () => {
+    if (googleLoginInProgress) return;
+
+    googleLoginInProgress = true;
+
+    const btnGoogle = qs("#btn-google");
+    btnGoogle.disabled = true;
+    btnGoogle.textContent = "Connexion en cours...";
+
     if (!firebase) {
       state.mode = "demo";
       state.user = { uid:"demo", displayName:"Laeti", email:null };
@@ -442,6 +452,10 @@ function bindEvents() {
       await signInWithPopup(firebase.auth, firebase.provider);
     } catch (error) {
       alert(`Connexion impossible : ${error.message}`);
+
+      googleLoginInProgress = false;
+      btnGoogle.disabled = false;
+      btnGoogle.textContent = "Continuer avec Google";
     }
   });
 
