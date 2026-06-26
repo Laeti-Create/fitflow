@@ -482,3 +482,51 @@ textarea{min-height:92px;resize:vertical}
 .profile-form label{grid-template-columns:120px 1fr;}
 #measure-line{width:100%;height:180px;margin-top:12px;}
 @media (max-width: 460px){.profile-form label{grid-template-columns:1fr;}}
+
+.motivation-card{
+  background:linear-gradient(135deg,#fff4df,#fffaf2);
+  border:1px solid rgba(255,183,3,.35);
+  border-radius:22px;
+  padding:18px;
+  display:grid;
+  grid-template-columns:52px 1fr;
+  gap:14px;
+  align-items:center;
+  box-shadow:0 10px 24px rgba(135,94,35,.08);
+  margin-bottom:20px;
+}
+
+.motivation-icon{
+  width:52px;
+  height:52px;
+  border-radius:18px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--sun),var(--gold));
+  font-size:28px;
+}
+
+.motivation-card strong{
+  display:block;
+  color:#222;
+  font-size:16px;
+  margin-bottom:4px;
+}
+
+.motivation-card p{
+  margin:0;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.35;
+}
+
+.compact-weight{
+  margin-top:18px;
+  padding:16px;
+  box-shadow:0 10px 22px rgba(255,138,0,.14);
+}
+
+.weight-big.compact{
+  font-size:26px;
+  margin:6px 0 8px;
+}
