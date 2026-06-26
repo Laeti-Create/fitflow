@@ -86,8 +86,8 @@ const SAMPLE_STRENGTH = [
 ];
 
 const SAMPLE_MEASUREMENTS = [
-  { date:"2026-05-01", waist:82, hips:112, thigh:66, arm:31, chest:98, comment:"" },
-  { date:"2026-06-01", waist:79, hips:109, thigh:64, arm:30, chest:96, comment:"" }
+  { date:"2026-05-01", waist:82, hips:112, thigh:66, arm:31, comment:"" },
+  { date:"2026-06-01", waist:79, hips:109, thigh:64, arm:30, comment:"" }
 ];
 
 let firebase = null;
@@ -209,14 +209,15 @@ async function addWeight(weightEntry) {
 }
 
 async function addStrength(entry) {
-  state.strengthSessions = [entry, ...state.strengthSessions].sort((a,b) => b.date.localeCompare(a.date));
-
   if (firebase && state.user) {
-    await addDoc(collection(firebase.db, "users", state.user.uid, "strengthSessions"), {
+    const docRef = await addDoc(collection(firebase.db, "users", state.user.uid, "strengthSessions"), {
       ...entry,
       createdAt: serverTimestamp()
     });
+
+    state.strengthSessions = [{ ...entry, id: docRef.id }, ...state.strengthSessions].sort((a,b) => b.date.localeCompare(a.date));
   } else {
+    state.strengthSessions = [entry, ...state.strengthSessions].sort((a,b) => b.date.localeCompare(a.date));
     saveLocal();
   }
 }
@@ -259,6 +260,7 @@ function parseOptionalNumber(value) {
   if (String(value).trim() === "") return null;
   return Number(value);
 }
+
 async function addMeasurement(entry) {
   state.measurements = [...state.measurements, entry].sort((a,b) => a.date.localeCompare(b.date));
 
@@ -350,6 +352,8 @@ function calcWalk(distance, duration, incline, arms) {
 
 function strengthTypeLabel(type) {
   const labels = {
+    push: "Poussée",
+    pull: "Tirage",
     upper: "Haut du corps",
     lower: "Bas du corps",
     full: "Full body",
@@ -399,19 +403,19 @@ function renderDashboard() {
 
   let motivation = "Chaque pas te rapproche de ta meilleure version.";
 
-if (distance >= 20 && weekStrength.length >= 2) {
-  motivation = "Semaine solide : tu combines cardio, force et régularité 🔥";
-} else if (distance >= 10) {
-  motivation = "Belle régularité sur la marche, continue comme ça 🌿";
-} else if (weekStrength.length >= 2) {
-  motivation = "Tes séances muscu construisent ta force, une répétition après l’autre 💪";
-} else if (steps >= 20000) {
-  motivation = "Tes pas s’additionnent, et ta progression aussi ✨";
-}
+  if (distance >= 20 && weekStrength.length >= 2) {
+    motivation = "Semaine solide : tu combines cardio, force et régularité 🔥";
+  } else if (distance >= 10) {
+    motivation = "Belle régularité sur la marche, continue comme ça 🌿";
+  } else if (weekStrength.length >= 2) {
+    motivation = "Tes séances muscu construisent ta force, une répétition après l’autre 💪";
+  } else if (steps >= 20000) {
+    motivation = "Tes pas s’additionnent, et ta progression aussi ✨";
+  }
 
-const motivationText = qs("#motivation-text");
-if (motivationText) motivationText.textContent = motivation;
-  
+  const motivationText = qs("#motivation-text");
+  if (motivationText) motivationText.textContent = motivation;
+
   qs("#week-distance").textContent = `${fmtNumber(distance, 1)} km`;
   qs("#week-steps").textContent = fmtInt(steps);
   qs("#week-calories").textContent = fmtInt(calories);
@@ -539,29 +543,28 @@ function renderStrength() {
   if (!container) return;
   container.innerHTML = "";
 
-state.strengthSessions
-  .slice()
-  .sort((a,b) => b.date.localeCompare(a.date))
-  .forEach((entry) => {
-    const realIndex = state.strengthSessions.findIndex((x) => x === entry);
+  state.strengthSessions
+    .slice()
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .forEach((entry) => {
+      const realIndex = state.strengthSessions.findIndex((x) => x === entry);
       const card = document.createElement("article");
       card.className = "history-card";
       card.innerHTML = `
-card.innerHTML = `
-  <div class="avatar">🏋️</div>
-  <div>
-    <strong>${entry.name || strengthTypeLabel(entry.type)}</strong>
-    <small>${fmtDateShort(entry.date)} • ${entry.duration || 0} min • ${entry.totalSets || "-"} séries</small>
-    <div class="card-actions">
-      <button class="mini-action edit-strength" data-index="${realIndex}" data-id="${entry.id || ""}">Modifier</button>
-      <button class="mini-action danger delete-strength" data-index="${realIndex}" data-id="${entry.id || ""}">Supprimer</button>
-    </div>
-  </div>
-  <div class="right">
-    ${entry.totalVolume ? fmtInt(entry.totalVolume) + " kg" : "✓"}
-    <span>${entry.calories ? fmtInt(entry.calories) + " kcal" : entry.comment || "Séance faite"}</span>
-  </div>
-`;
+        <div class="avatar">🏋️</div>
+        <div>
+          <strong>${entry.name || strengthTypeLabel(entry.type)}</strong>
+          <small>${fmtDateShort(entry.date)} • ${entry.duration || 0} min • ${entry.totalSets || "-"} séries</small>
+          <div class="card-actions">
+            <button class="mini-action edit-strength" data-index="${realIndex}" data-id="${entry.id || ""}">Modifier</button>
+            <button class="mini-action danger delete-strength" data-index="${realIndex}" data-id="${entry.id || ""}">Supprimer</button>
+          </div>
+        </div>
+        <div class="right">
+          ${entry.totalVolume ? fmtInt(entry.totalVolume) + " kg" : "✓"}
+          <span>${entry.calories ? fmtInt(entry.calories) + " kcal" : entry.comment || "Séance faite"}</span>
+        </div>
+      `;
       container.appendChild(card);
     });
 
@@ -767,17 +770,11 @@ function bindEvents() {
     event.preventDefault();
 
     const raw = Object.fromEntries(new FormData(weightForm).entries());
-const entry = {
-  date: raw.date,
-  name: raw.name || "Séance muscu",
-  duration: Number(raw.duration),
-  totalSets: raw.totalSets ? Number(raw.totalSets) : null,
-  totalVolume: raw.totalVolume ? Number(raw.totalVolume) : null,
-  calories: raw.calories ? Number(raw.calories) : null,
-  type: raw.type,
-  effort: Number(raw.effort),
-  comment: raw.comment || ""
-};
+    const entry = {
+      date: raw.date,
+      weight: Number(raw.weight),
+      comment: raw.comment || ""
+    };
 
     await addWeight(entry);
     weightForm.reset();
@@ -794,7 +791,11 @@ const entry = {
       const raw = Object.fromEntries(new FormData(strengthForm).entries());
       const entry = {
         date: raw.date,
+        name: raw.name || "Séance muscu",
         duration: Number(raw.duration),
+        totalSets: raw.totalSets ? Number(raw.totalSets) : null,
+        totalVolume: raw.totalVolume ? Number(raw.totalVolume) : null,
+        calories: raw.calories ? Number(raw.calories) : null,
         type: raw.type,
         effort: Number(raw.effort),
         comment: raw.comment || ""
@@ -820,7 +821,6 @@ const entry = {
         hips: Number(raw.hips),
         thigh: Number(raw.thigh),
         arm: Number(raw.arm),
-        chest: raw.chest ? Number(raw.chest) : null,
         comment: raw.comment || ""
       };
 
@@ -852,58 +852,58 @@ const entry = {
     });
   }
 
-const strengthList = qs("#strength-list-items");
+  const strengthList = qs("#strength-list-items");
 
-if (strengthList) {
-  strengthList.addEventListener("click", async (event) => {
-    const deleteButton = event.target.closest(".delete-strength");
-    const editButton = event.target.closest(".edit-strength");
+  if (strengthList) {
+    strengthList.addEventListener("click", async (event) => {
+      const deleteButton = event.target.closest(".delete-strength");
+      const editButton = event.target.closest(".edit-strength");
 
-    if (deleteButton) {
-      const index = Number(deleteButton.dataset.index);
-      const id = deleteButton.dataset.id || null;
-      await deleteStrength(id, index);
-      return;
-    }
+      if (deleteButton) {
+        const index = Number(deleteButton.dataset.index);
+        const id = deleteButton.dataset.id || null;
+        await deleteStrength(id, index);
+        return;
+      }
 
-    if (editButton) {
-      const index = Number(editButton.dataset.index);
-      const id = editButton.dataset.id || null;
-      const entry = state.strengthSessions[index];
+      if (editButton) {
+        const index = Number(editButton.dataset.index);
+        const id = editButton.dataset.id || null;
+        const entry = state.strengthSessions[index];
 
-      const name = prompt("Nom de la séance", entry.name || "");
-      if (name === null) return;
+        const name = prompt("Nom de la séance", entry.name || "");
+        if (name === null) return;
 
-      const duration = prompt("Durée en minutes", entry.duration || "");
-      if (duration === null) return;
+        const duration = prompt("Durée en minutes", entry.duration || "");
+        if (duration === null) return;
 
-      const totalSets = prompt("Nombre de séries", entry.totalSets || "");
-      if (totalSets === null) return;
+        const totalSets = prompt("Nombre de séries", entry.totalSets || "");
+        if (totalSets === null) return;
 
-      const totalVolume = prompt("Volume total en kg", entry.totalVolume || "");
-      if (totalVolume === null) return;
+        const totalVolume = prompt("Volume total en kg", entry.totalVolume || "");
+        if (totalVolume === null) return;
 
-      const calories = prompt("Calories", entry.calories || "");
-      if (calories === null) return;
+        const calories = prompt("Calories", entry.calories || "");
+        if (calories === null) return;
 
-      const effort = prompt("Effort /10", entry.effort || "");
-      if (effort === null) return;
+        const effort = prompt("Effort /10", entry.effort || "");
+        if (effort === null) return;
 
-      const comment = prompt("Commentaire", entry.comment || "");
-      if (comment === null) return;
+        const comment = prompt("Commentaire", entry.comment || "");
+        if (comment === null) return;
 
-      await updateStrength(id, index, {
-        name: name || "Séance muscu",
-        duration: Number(duration),
-        totalSets: parseOptionalNumber(totalSets),
-        totalVolume: parseOptionalNumber(totalVolume),
-        calories: parseOptionalNumber(calories),
-        effort: Number(effort),
-        comment: comment || ""
-      });
-    }
-  });
-}
+        await updateStrength(id, index, {
+          name: name || "Séance muscu",
+          duration: Number(duration),
+          totalSets: parseOptionalNumber(totalSets),
+          totalVolume: parseOptionalNumber(totalVolume),
+          calories: parseOptionalNumber(calories),
+          effort: Number(effort),
+          comment: comment || ""
+        });
+      }
+    });
+  }
 
   qsa("#btn-signout, #btn-signout-top").forEach((btn) => {
     btn.addEventListener("click", async () => {
