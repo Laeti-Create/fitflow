@@ -16,6 +16,8 @@ import {
   getDocs,
   setDoc,
   addDoc,
+  updateDoc,
+  deleteDoc,
   query,
   orderBy,
   serverTimestamp
@@ -219,6 +221,44 @@ async function addStrength(entry) {
   }
 }
 
+async function deleteStrength(entryId, index) {
+  const confirmDelete = confirm("Supprimer cette séance muscu ?");
+  if (!confirmDelete) return;
+
+  state.strengthSessions.splice(index, 1);
+
+  if (firebase && state.user && entryId) {
+    await deleteDoc(doc(firebase.db, "users", state.user.uid, "strengthSessions", entryId));
+  } else {
+    saveLocal();
+  }
+
+  render();
+}
+
+async function updateStrength(entryId, index, updates) {
+  state.strengthSessions[index] = {
+    ...state.strengthSessions[index],
+    ...updates
+  };
+
+  if (firebase && state.user && entryId) {
+    await updateDoc(doc(firebase.db, "users", state.user.uid, "strengthSessions", entryId), {
+      ...updates,
+      updatedAt: serverTimestamp()
+    });
+  } else {
+    saveLocal();
+  }
+
+  render();
+}
+
+function parseOptionalNumber(value) {
+  if (value === null) return null;
+  if (String(value).trim() === "") return null;
+  return Number(value);
+}
 async function addMeasurement(entry) {
   state.measurements = [...state.measurements, entry].sort((a,b) => a.date.localeCompare(b.date));
 
@@ -499,23 +539,29 @@ function renderStrength() {
   if (!container) return;
   container.innerHTML = "";
 
-  state.strengthSessions
-    .slice()
-    .sort((a,b) => b.date.localeCompare(a.date))
-    .forEach((entry) => {
+state.strengthSessions
+  .slice()
+  .sort((a,b) => b.date.localeCompare(a.date))
+  .forEach((entry) => {
+    const realIndex = state.strengthSessions.findIndex((x) => x === entry);
       const card = document.createElement("article");
       card.className = "history-card";
       card.innerHTML = `
-        <div class="avatar">🏋️</div>
-        <div>
-        <strong>${entry.name || strengthTypeLabel(entry.type)}</strong>
-<small>${fmtDateShort(entry.date)} • ${entry.duration || 0} min • ${entry.totalSets || "-"} séries</small>
-        </div>
-        <div class="right">
-${entry.totalVolume ? fmtInt(entry.totalVolume) + " kg" : "✓"}
-<span>${entry.calories ? fmtInt(entry.calories) + " kcal" : entry.comment || "Séance faite"}</span>
-        </div>
-      `;
+card.innerHTML = `
+  <div class="avatar">🏋️</div>
+  <div>
+    <strong>${entry.name || strengthTypeLabel(entry.type)}</strong>
+    <small>${fmtDateShort(entry.date)} • ${entry.duration || 0} min • ${entry.totalSets || "-"} séries</small>
+    <div class="card-actions">
+      <button class="mini-action edit-strength" data-index="${realIndex}" data-id="${entry.id || ""}">Modifier</button>
+      <button class="mini-action danger delete-strength" data-index="${realIndex}" data-id="${entry.id || ""}">Supprimer</button>
+    </div>
+  </div>
+  <div class="right">
+    ${entry.totalVolume ? fmtInt(entry.totalVolume) + " kg" : "✓"}
+    <span>${entry.calories ? fmtInt(entry.calories) + " kcal" : entry.comment || "Séance faite"}</span>
+  </div>
+`;
       container.appendChild(card);
     });
 
@@ -805,6 +851,59 @@ const entry = {
       render();
     });
   }
+
+const strengthList = qs("#strength-list-items");
+
+if (strengthList) {
+  strengthList.addEventListener("click", async (event) => {
+    const deleteButton = event.target.closest(".delete-strength");
+    const editButton = event.target.closest(".edit-strength");
+
+    if (deleteButton) {
+      const index = Number(deleteButton.dataset.index);
+      const id = deleteButton.dataset.id || null;
+      await deleteStrength(id, index);
+      return;
+    }
+
+    if (editButton) {
+      const index = Number(editButton.dataset.index);
+      const id = editButton.dataset.id || null;
+      const entry = state.strengthSessions[index];
+
+      const name = prompt("Nom de la séance", entry.name || "");
+      if (name === null) return;
+
+      const duration = prompt("Durée en minutes", entry.duration || "");
+      if (duration === null) return;
+
+      const totalSets = prompt("Nombre de séries", entry.totalSets || "");
+      if (totalSets === null) return;
+
+      const totalVolume = prompt("Volume total en kg", entry.totalVolume || "");
+      if (totalVolume === null) return;
+
+      const calories = prompt("Calories", entry.calories || "");
+      if (calories === null) return;
+
+      const effort = prompt("Effort /10", entry.effort || "");
+      if (effort === null) return;
+
+      const comment = prompt("Commentaire", entry.comment || "");
+      if (comment === null) return;
+
+      await updateStrength(id, index, {
+        name: name || "Séance muscu",
+        duration: Number(duration),
+        totalSets: parseOptionalNumber(totalSets),
+        totalVolume: parseOptionalNumber(totalVolume),
+        calories: parseOptionalNumber(calories),
+        effort: Number(effort),
+        comment: comment || ""
+      });
+    }
+  });
+}
 
   qsa("#btn-signout, #btn-signout-top").forEach((btn) => {
     btn.addEventListener("click", async () => {
