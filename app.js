@@ -493,12 +493,12 @@ function renderStrength() {
       card.innerHTML = `
         <div class="avatar">🏋️</div>
         <div>
-          <strong>${fmtDateShort(entry.date)}</strong>
-          <small>${strengthTypeLabel(entry.type)} • ${entry.duration || 0} min • Effort ${entry.effort || "-"}/10</small>
+        <strong>${entry.name || strengthTypeLabel(entry.type)}</strong>
+<small>${fmtDateShort(entry.date)} • ${entry.duration || 0} min • ${entry.totalSets || "-"} séries</small>
         </div>
         <div class="right">
-          ${entry.comment ? "📝" : "✓"}
-          <span>${entry.comment || "Séance faite"}</span>
+${entry.totalVolume ? fmtInt(entry.totalVolume) + " kg" : "✓"}
+<span>${entry.calories ? fmtInt(entry.calories) + " kcal" : entry.comment || "Séance faite"}</span>
         </div>
       `;
       container.appendChild(card);
@@ -706,11 +706,17 @@ function bindEvents() {
     event.preventDefault();
 
     const raw = Object.fromEntries(new FormData(weightForm).entries());
-    const entry = {
-      date: raw.date,
-      weight: Number(raw.weight),
-      comment: raw.comment || ""
-    };
+const entry = {
+  date: raw.date,
+  name: raw.name || "Séance muscu",
+  duration: Number(raw.duration),
+  totalSets: raw.totalSets ? Number(raw.totalSets) : null,
+  totalVolume: raw.totalVolume ? Number(raw.totalVolume) : null,
+  calories: raw.calories ? Number(raw.calories) : null,
+  type: raw.type,
+  effort: Number(raw.effort),
+  comment: raw.comment || ""
+};
 
     await addWeight(entry);
     weightForm.reset();
