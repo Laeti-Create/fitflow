@@ -77,17 +77,25 @@ const SAMPLE_WEIGHTS = [
   { date:"2026-06-25", weight:79.5, comment:"" }
 ];
 
+const SAMPLE_STRENGTH = [
+  { date:"2026-06-23", duration:45, type:"upper", effort:7, comment:"Haut du corps" },
+  { date:"2026-06-25", duration:50, type:"lower", effort:8, comment:"Bas du corps" },
+  { date:"2026-06-26", duration:40, type:"full", effort:7, comment:"Full body" }
+];
+
+const SAMPLE_MEASUREMENTS = [
+  { date:"2026-05-01", waist:82, hips:112, thigh:66, arm:31, chest:98, comment:"" },
+  { date:"2026-06-01", waist:79, hips:109, thigh:64, arm:30, chest:96, comment:"" }
+];
+
 let firebase = null;
 let state = {
   user: null,
   profile: structuredClone(SAMPLE_PROFILE),
   walks: structuredClone(SAMPLE_WALKS),
   weights: structuredClone(SAMPLE_WEIGHTS),
-  strengthSessions: [
-    { date:"2026-06-23", duration:45 },
-    { date:"2026-06-25", duration:50 },
-    { date:"2026-06-26", duration:40 }
-  ],
+  strengthSessions: structuredClone(SAMPLE_STRENGTH),
+  measurements: structuredClone(SAMPLE_MEASUREMENTS),
   lastSummary: null,
   mode: "demo"
 };
@@ -114,7 +122,8 @@ function loadLocal() {
   state.profile = JSON.parse(localStorage.getItem(storageKey("profile")) || "null") || structuredClone(SAMPLE_PROFILE);
   state.walks = JSON.parse(localStorage.getItem(storageKey("walks")) || "null") || structuredClone(SAMPLE_WALKS);
   state.weights = JSON.parse(localStorage.getItem(storageKey("weights")) || "null") || structuredClone(SAMPLE_WEIGHTS);
-  state.strengthSessions = JSON.parse(localStorage.getItem(storageKey("strength")) || "null") || state.strengthSessions;
+  state.strengthSessions = JSON.parse(localStorage.getItem(storageKey("strength")) || "null") || structuredClone(SAMPLE_STRENGTH);
+  state.measurements = JSON.parse(localStorage.getItem(storageKey("measurements")) || "null") || structuredClone(SAMPLE_MEASUREMENTS);
 }
 
 function saveLocal() {
@@ -122,6 +131,7 @@ function saveLocal() {
   localStorage.setItem(storageKey("walks"), JSON.stringify(state.walks));
   localStorage.setItem(storageKey("weights"), JSON.stringify(state.weights));
   localStorage.setItem(storageKey("strength"), JSON.stringify(state.strengthSessions));
+  localStorage.setItem(storageKey("measurements"), JSON.stringify(state.measurements));
 }
 
 async function loadRemote() {
@@ -158,8 +168,16 @@ async function loadRemote() {
   const weightsSnap = await getDocs(query(collection(firebase.db, "users", state.user.uid, "weights"), orderBy("date", "asc")));
   state.weights = weightsSnap.docs.map((d) => ({ id:d.id, ...d.data() }));
 
+  const strengthSnap = await getDocs(query(collection(firebase.db, "users", state.user.uid, "strengthSessions"), orderBy("date", "desc")));
+  state.strengthSessions = strengthSnap.docs.map((d) => ({ id:d.id, ...d.data() }));
+
+  const measurementsSnap = await getDocs(query(collection(firebase.db, "users", state.user.uid, "measurements"), orderBy("date", "asc")));
+  state.measurements = measurementsSnap.docs.map((d) => ({ id:d.id, ...d.data() }));
+
   if (!state.walks.length) state.walks = structuredClone(SAMPLE_WALKS);
   if (!state.weights.length) state.weights = structuredClone(SAMPLE_WEIGHTS);
+  if (!state.strengthSessions.length) state.strengthSessions = structuredClone(SAMPLE_STRENGTH);
+  if (!state.measurements.length) state.measurements = structuredClone(SAMPLE_MEASUREMENTS);
 }
 
 async function addWalk(walk) {
@@ -183,6 +201,41 @@ async function addWeight(weightEntry) {
       ...weightEntry,
       createdAt: serverTimestamp()
     });
+  } else {
+    saveLocal();
+  }
+}
+
+async function addStrength(entry) {
+  state.strengthSessions = [entry, ...state.strengthSessions].sort((a,b) => b.date.localeCompare(a.date));
+
+  if (firebase && state.user) {
+    await addDoc(collection(firebase.db, "users", state.user.uid, "strengthSessions"), {
+      ...entry,
+      createdAt: serverTimestamp()
+    });
+  } else {
+    saveLocal();
+  }
+}
+
+async function addMeasurement(entry) {
+  state.measurements = [...state.measurements, entry].sort((a,b) => a.date.localeCompare(b.date));
+
+  if (firebase && state.user) {
+    await addDoc(collection(firebase.db, "users", state.user.uid, "measurements"), {
+      ...entry,
+      createdAt: serverTimestamp()
+    });
+  } else {
+    saveLocal();
+  }
+}
+
+async function saveProfile(profile) {
+  state.profile = { ...state.profile, ...profile };
+
+  if (firebase && state.user) {
     await setDoc(doc(firebase.db, "users", state.user.uid, "profile", "main"), {
       ...state.profile,
       updatedAt: serverTimestamp()
@@ -204,6 +257,7 @@ function previousWeight() {
 function weightProgressPercent() {
   const total = state.profile.startWeight - state.profile.targetWeight;
   const done = state.profile.startWeight - currentWeight();
+  if (!total) return 0;
   return Math.max(0, Math.min(100, (done / total) * 100));
 }
 
@@ -230,6 +284,11 @@ function getWeekWalks() {
   return weekWalks.length ? weekWalks : state.walks.slice(0, 7);
 }
 
+function getWeekStrength() {
+  const weekStrength = state.strengthSessions.filter((entry) => isInCurrentWeek(entry.date));
+  return weekStrength.length ? weekStrength : state.strengthSessions.slice(0, 7);
+}
+
 function calcWalk(distance, duration, incline, arms) {
   const weight = currentWeight();
   const speed = duration > 0 ? distance / (duration / 60) : 0;
@@ -249,12 +308,28 @@ function calcWalk(distance, duration, incline, arms) {
   };
 }
 
+function strengthTypeLabel(type) {
+  const labels = {
+    upper: "Haut du corps",
+    lower: "Bas du corps",
+    full: "Full body",
+    glutes: "Fessiers / jambes",
+    core: "Abdos / gainage",
+    other: "Autre"
+  };
+  return labels[type] || "Autre";
+}
+
 function navigate(viewName) {
   qsa(".view").forEach((view) => view.classList.remove("active"));
   qs(`#view-${viewName}`)?.classList.add("active");
 
   qsa(".bottom-nav button").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.nav === viewName || (viewName === "walk-form" && btn.dataset.nav === "add"));
+    btn.classList.toggle(
+      "active",
+      btn.dataset.nav === viewName ||
+      (["walk-form","strength-form","measure-form","weight-form"].includes(viewName) && btn.dataset.nav === "add")
+    );
   });
 
   render();
@@ -270,6 +345,7 @@ function renderDashboard() {
   const weight = currentWeight();
   const left = profile.targetWeight - weight;
   const weekWalks = getWeekWalks();
+  const weekStrength = getWeekStrength();
 
   qs("#user-firstname").textContent = profile.firstname || "Laeti";
   qs("#dash-current-weight").textContent = fmtNumber(weight, 1);
@@ -284,7 +360,7 @@ function renderDashboard() {
   qs("#week-distance").textContent = `${fmtNumber(distance, 1)} km`;
   qs("#week-steps").textContent = fmtInt(steps);
   qs("#week-calories").textContent = fmtInt(calories);
-  qs("#week-strength").textContent = state.strengthSessions.length;
+  qs("#week-strength").textContent = weekStrength.length;
 }
 
 function renderWalkList() {
@@ -313,8 +389,9 @@ function renderWalkList() {
     });
 }
 
-function renderBars(selector, items, metric, unit = "") {
+function renderBars(selector, items, metric) {
   const container = qs(selector);
+  if (!container) return;
   container.innerHTML = "";
   const max = Math.max(1, ...items.map((item) => Number(item[metric] || 0)));
 
@@ -337,8 +414,8 @@ function renderWalkCharts() {
     .sort((a,b) => a.date.localeCompare(b.date))
     .slice(-7);
 
-  renderBars("#distance-bars", items, "distance", "km");
-  renderBars("#calorie-bars", items, "calories", "kcal");
+  renderBars("#distance-bars", items, "distance");
+  renderBars("#calorie-bars", items, "calories");
 
   qs("#distance-total").textContent = `Total : ${fmtNumber(items.reduce((s,w) => s + Number(w.distance || 0), 0), 1)} km`;
   qs("#calorie-total").textContent = `Total : ${fmtInt(items.reduce((s,w) => s + Number(w.calories || 0), 0))} kcal`;
@@ -358,7 +435,10 @@ function renderWeight() {
 
 function renderWeightLine() {
   const svg = qs("#weight-line");
+  if (!svg) return;
   const weights = state.weights.slice().sort((a,b) => a.date.localeCompare(b.date));
+  if (!weights.length) return;
+
   const values = weights.map((w) => Number(w.weight));
   const min = Math.min(...values, state.profile.targetWeight) - 1;
   const max = Math.max(...values, state.profile.startWeight) + 1;
@@ -382,6 +462,7 @@ function renderWeightLine() {
 
 function renderWeightList() {
   const container = qs("#weight-list-items");
+  if (!container) return;
   container.innerHTML = "";
   state.weights.slice().sort((a,b) => b.date.localeCompare(a.date)).forEach((entry) => {
     const card = document.createElement("article");
@@ -398,12 +479,108 @@ function renderWeightList() {
   });
 }
 
+function renderStrength() {
+  const container = qs("#strength-list-items");
+  if (!container) return;
+  container.innerHTML = "";
+
+  state.strengthSessions
+    .slice()
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .forEach((entry) => {
+      const card = document.createElement("article");
+      card.className = "history-card";
+      card.innerHTML = `
+        <div class="avatar">🏋️</div>
+        <div>
+          <strong>${fmtDateShort(entry.date)}</strong>
+          <small>${strengthTypeLabel(entry.type)} • ${entry.duration || 0} min • Effort ${entry.effort || "-"}/10</small>
+        </div>
+        <div class="right">
+          ${entry.comment ? "📝" : "✓"}
+          <span>${entry.comment || "Séance faite"}</span>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+  const items = state.strengthSessions.slice().sort((a,b) => a.date.localeCompare(b.date)).slice(-7);
+  renderBars("#strength-bars", items.map((x) => ({...x, duration: Number(x.duration || 0)})), "duration");
+  const total = items.reduce((sum, x) => sum + Number(x.duration || 0), 0);
+  const totalEl = qs("#strength-total");
+  if (totalEl) totalEl.textContent = `Total : ${fmtInt(total)} min`;
+}
+
+function renderMeasurements() {
+  const list = qs("#measure-list-items");
+  if (!list) return;
+  list.innerHTML = "";
+
+  state.measurements
+    .slice()
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .forEach((entry) => {
+      const card = document.createElement("article");
+      card.className = "history-card";
+      card.innerHTML = `
+        <div class="avatar">📏</div>
+        <div>
+          <strong>${fmtDateShort(entry.date)}</strong>
+          <small>Taille ${fmtNumber(entry.waist, 1)} cm • Hanches ${fmtNumber(entry.hips, 1)} cm • Cuisse ${fmtNumber(entry.thigh, 1)} cm</small>
+        </div>
+        <div class="right">
+          Bras ${fmtNumber(entry.arm, 1)}
+          <span>${entry.comment || "Mensurations"}</span>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+
+  renderMeasureLine();
+}
+
+function renderMeasureLine() {
+  const svg = qs("#measure-line");
+  if (!svg) return;
+  const data = state.measurements.slice().sort((a,b) => a.date.localeCompare(b.date));
+  if (!data.length) return;
+
+  const values = data.flatMap((d) => [Number(d.waist || 0), Number(d.hips || 0), Number(d.thigh || 0)].filter(Boolean));
+  const min = Math.min(...values) - 2;
+  const max = Math.max(...values) + 2;
+  const pad = 28;
+  const width = 320;
+  const height = 180;
+
+  const x = (i) => pad + (i / Math.max(1, data.length - 1)) * (width - pad * 2);
+  const y = (v) => height - pad - ((v - min) / Math.max(1, max - min)) * (height - pad * 2);
+  const line = (field) => data.map((d, i) => `${x(i)},${y(Number(d[field] || 0))}`).join(" ");
+
+  svg.innerHTML = `
+    <polyline points="${line("hips")}" fill="none" stroke="#FF8A00" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="${line("waist")}" fill="none" stroke="#FFB703" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="${line("thigh")}" fill="none" stroke="#5BBE8A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    ${data.map((d, i) => `<circle cx="${x(i)}" cy="${y(Number(d.waist || 0))}" r="4" fill="#FFB703" />`).join("")}
+  `;
+}
+
 function renderSettings() {
   qs("#settings-target").textContent = fmtNumber(state.profile.targetWeight, 1);
   qs("#settings-start").textContent = fmtNumber(state.profile.startWeight, 1);
   qs("#settings-height").textContent = fmtNumber(state.profile.height, 2);
   qs("#settings-date").textContent = fmtDateShort(state.profile.startDate);
   qs("#settings-step").textContent = fmtNumber(state.profile.stepLength, 2);
+
+  const form = qs("#profile-form");
+  if (form && !form.dataset.loaded) {
+    form.elements.firstname.value = state.profile.firstname || "";
+    form.elements.targetWeight.value = state.profile.targetWeight || "";
+    form.elements.startWeight.value = state.profile.startWeight || "";
+    form.elements.height.value = state.profile.height || "";
+    form.elements.startDate.value = state.profile.startDate || todayISO();
+    form.elements.stepLength.value = state.profile.stepLength || "";
+    form.dataset.loaded = "true";
+  }
 }
 
 function renderSummary() {
@@ -423,6 +600,8 @@ function render() {
   renderWalkList();
   renderWalkCharts();
   renderWeight();
+  renderStrength();
+  renderMeasurements();
   renderSettings();
   renderSummary();
 }
@@ -434,7 +613,6 @@ function bindEvents() {
     if (googleLoginInProgress) return;
 
     googleLoginInProgress = true;
-
     const btnGoogle = qs("#btn-google");
     btnGoogle.disabled = true;
     btnGoogle.textContent = "Connexion en cours...";
@@ -452,7 +630,6 @@ function bindEvents() {
       await signInWithPopup(firebase.auth, firebase.provider);
     } catch (error) {
       alert(`Connexion impossible : ${error.message}`);
-
       googleLoginInProgress = false;
       btnGoogle.disabled = false;
       btnGoogle.textContent = "Continuer avec Google";
@@ -540,6 +717,73 @@ function bindEvents() {
     weightForm.elements.date.value = todayISO();
     navigate("weight");
   });
+
+  const strengthForm = qs("#strength-form");
+  if (strengthForm) {
+    strengthForm.elements.date.value = todayISO();
+    strengthForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const raw = Object.fromEntries(new FormData(strengthForm).entries());
+      const entry = {
+        date: raw.date,
+        duration: Number(raw.duration),
+        type: raw.type,
+        effort: Number(raw.effort),
+        comment: raw.comment || ""
+      };
+
+      await addStrength(entry);
+      strengthForm.reset();
+      strengthForm.elements.date.value = todayISO();
+      navigate("strength");
+    });
+  }
+
+  const measureForm = qs("#measure-form");
+  if (measureForm) {
+    measureForm.elements.date.value = todayISO();
+    measureForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const raw = Object.fromEntries(new FormData(measureForm).entries());
+      const entry = {
+        date: raw.date,
+        waist: Number(raw.waist),
+        hips: Number(raw.hips),
+        thigh: Number(raw.thigh),
+        arm: Number(raw.arm),
+        chest: raw.chest ? Number(raw.chest) : null,
+        comment: raw.comment || ""
+      };
+
+      await addMeasurement(entry);
+      measureForm.reset();
+      measureForm.elements.date.value = todayISO();
+      navigate("measurements");
+    });
+  }
+
+  const profileForm = qs("#profile-form");
+  if (profileForm) {
+    profileForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const raw = Object.fromEntries(new FormData(profileForm).entries());
+
+      await saveProfile({
+        firstname: raw.firstname || "Laeti",
+        targetWeight: Number(raw.targetWeight),
+        startWeight: Number(raw.startWeight),
+        height: Number(raw.height),
+        startDate: raw.startDate,
+        stepLength: Number(raw.stepLength)
+      });
+
+      profileForm.dataset.loaded = "";
+      alert("Paramètres enregistrés ✅");
+      render();
+    });
+  }
 
   qsa("#btn-signout, #btn-signout-top").forEach((btn) => {
     btn.addEventListener("click", async () => {

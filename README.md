@@ -64,3 +64,23 @@ users/{uid}/weights/{weightId}
 ## Note importante
 
 La formule calories est une estimation simple pour démarrer. Elle pourra être améliorée ensuite avec tes paramètres réels : poids, vitesse, pente, durée, bras appuyés, fréquence cardiaque si tu veux l’ajouter plus tard.
+
+
+## Nouveautés V2
+
+- Ajout des séances de musculation
+- Historique musculation
+- Graphique durée des séances
+- Ajout des mensurations
+- Historique mensurations
+- Graphique taille / hanches / cuisse
+- Paramètres modifiables depuis l'app
+
+### Nouvelles collections Firestore
+
+```txt
+users/{uid}/strengthSessions/{documentId}
+users/{uid}/measurements/{documentId}
+```
+
+Aucune règle Firestore supplémentaire n'est nécessaire si vous utilisez les règles fournies dans `firestore.rules`.
