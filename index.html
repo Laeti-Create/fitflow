@@ -187,38 +187,61 @@
             <h2>Nouvelle séance muscu</h2>
           </header>
 
-          <form id="strength-form" class="form-card">
-            <label>Date
-              <input name="date" type="date" required />
-            </label>
-            <label>Durée
-              <input name="duration" type="number" min="1" step="1" placeholder="45 min" required />
-            </label>
-            <label>Type
-              <select name="type">
-                <option value="lower">Bas du corps</option>
-                <option value="upper">Haut du corps</option>
-                <option value="full">Full body</option>
-                <option value="glutes">Fessiers / jambes</option>
-                <option value="core">Abdos / gainage</option>
-                <option value="other">Autre</option>
-              </select>
-            </label>
-            <label>Effort
-              <select name="effort">
-                <option value="5">5 / 10</option>
-                <option value="6">6 / 10</option>
-                <option value="7" selected>7 / 10</option>
-                <option value="8">8 / 10</option>
-                <option value="9">9 / 10</option>
-                <option value="10">10 / 10</option>
-              </select>
-            </label>
-            <label class="textarea-label">Commentaire <span>(optionnel)</span>
-              <textarea name="comment" maxlength="120" placeholder="Ex : hip thrust, tirage, séance jambes…"></textarea>
-            </label>
-            <button class="btn btn-primary wide" type="submit">Enregistrer la séance</button>
-          </form>
+<form id="strength-form" class="form-card">
+  <label>Date
+    <input name="date" type="date" required />
+  </label>
+
+  <label>Nom séance
+    <input name="name" type="text" placeholder="Ex : Tirage A, Poussée B..." required />
+  </label>
+
+  <label>Durée
+    <input name="duration" type="number" min="1" step="1" placeholder="64 min" required />
+  </label>
+
+  <label>Séries
+    <input name="totalSets" type="number" min="1" step="1" placeholder="26" />
+  </label>
+
+  <label>Volume
+    <input name="totalVolume" type="number" min="0" step="1" placeholder="5175 kg" />
+  </label>
+
+  <label>Calories
+    <input name="calories" type="number" min="0" step="1" placeholder="230 kcal" />
+  </label>
+
+  <label>Type
+    <select name="type">
+      <option value="push">Poussée</option>
+      <option value="pull">Tirage</option>
+      <option value="lower">Bas du corps</option>
+      <option value="upper">Haut du corps</option>
+      <option value="full">Full body</option>
+      <option value="glutes">Fessiers / jambes</option>
+      <option value="core">Abdos / gainage</option>
+      <option value="other">Autre</option>
+    </select>
+  </label>
+
+  <label>Effort
+    <select name="effort">
+      <option value="5">5 / 10</option>
+      <option value="6">6 / 10</option>
+      <option value="7" selected>7 / 10</option>
+      <option value="8">8 / 10</option>
+      <option value="9">9 / 10</option>
+      <option value="10">10 / 10</option>
+    </select>
+  </label>
+
+  <label class="textarea-label">Commentaire <span>(optionnel)</span>
+    <textarea name="comment" maxlength="120" placeholder="Ex : hip thrust, tirage, séance jambes…"></textarea>
+  </label>
+
+  <button class="btn btn-primary wide" type="submit">Enregistrer la séance</button>
+</form>
         </section>
 
         <section id="view-measure-form" class="view">
