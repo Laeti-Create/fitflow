@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v1";
+const CACHE_NAME = "fitflow-cache-v2";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -7,9 +7,9 @@ const ASSETS_TO_CACHE = [
   "/fitflow/app.js",
   "/fitflow/firebase-config.js",
   "/fitflow/manifest.json",
-  "/fitflow/icons/icon.svg",
-  "/fitflow/icons/icon-192.png",
-  "/fitflow/icons/icon-512.png"
+  "/fitflow/icon.svg",
+  "/fitflow/icon-192.png",
+  "/fitflow/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
