@@ -6,13 +6,12 @@
   <meta name="theme-color" content="#FF8A00" />
   <title>FitFlow</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div id="app" class="app-shell">
 
-    <!-- LOGIN -->
     <main id="screen-login" class="screen screen-login active">
       <section class="login-card">
         <div class="brand">
@@ -41,7 +40,6 @@
       </section>
     </main>
 
-    <!-- MAIN APP -->
     <main id="screen-app" class="screen">
       <section class="phone">
 
@@ -54,30 +52,28 @@
             <button id="btn-signout-top" class="icon-btn" title="Déconnexion">🔔</button>
           </header>
 
-<article class="motivation-card">
-  <div class="motivation-icon">☀️</div>
-  <div>
-    <strong id="motivation-title">Objectif du jour</strong>
-    <p id="motivation-text">Chaque pas te rapproche de ta meilleure version.</p>
-  </div>
-</article>
-
-<h3>Ta semaine jusqu’ici</h3>
+          <article class="motivation-card">
+            <div class="motivation-icon">☀️</div>
+            <div>
+              <strong id="motivation-title">Objectif du jour</strong>
+              <p id="motivation-text">Chaque pas te rapproche de ta meilleure version.</p>
+            </div>
+          </article>
 
           <h3>Cette semaine</h3>
           <div class="grid-2">
             <article class="weight-card compact-weight">
-  <div class="row between">
-    <span>Poids actuel</span>
-    <span>⚖️</span>
-  </div>
-  <div class="weight-big compact"><span id="dash-current-weight">79,5</span> kg</div>
-  <div class="row between small">
-    <span>Objectif : <span id="dash-target-weight">65,0</span> kg</span>
-    <span id="dash-weight-left">-14,5 kg</span>
-  </div>
-  <div class="progress"><div id="dash-progress" class="progress-fill"></div></div>
-</article>
+              <div class="row between">
+                <span>Poids actuel</span>
+                <span>⚖️</span>
+              </div>
+              <div class="weight-big compact"><span id="dash-current-weight">79,5</span> kg</div>
+              <div class="row between small">
+                <span>Objectif : <span id="dash-target-weight">65,0</span> kg</span>
+                <span id="dash-weight-left">-14,5 kg</span>
+              </div>
+              <div class="progress"><div id="dash-progress" class="progress-fill"></div></div>
+            </article>
             <article class="metric-card">
               <span class="metric-icon">🚶</span>
               <p>Distance</p>
@@ -190,68 +186,58 @@
           </form>
         </section>
 
-
         <section id="view-strength-form" class="view">
           <header class="form-header">
             <button class="back-btn" data-back="add">‹</button>
             <h2>Nouvelle séance muscu</h2>
           </header>
 
-<form id="strength-form" class="form-card">
-  <label>Date
-    <input name="date" type="date" required />
-  </label>
-
-  <label>Nom séance
-    <input name="name" type="text" placeholder="Ex : Tirage A, Poussée B..." required />
-  </label>
-
-  <label>Durée
-    <input name="duration" type="number" min="1" step="1" placeholder="64 min" required />
-  </label>
-
-  <label>Séries
-    <input name="totalSets" type="number" min="1" step="1" placeholder="26" />
-  </label>
-
-  <label>Volume
-    <input name="totalVolume" type="number" min="0" step="1" placeholder="5175 kg" />
-  </label>
-
-  <label>Calories
-    <input name="calories" type="number" min="0" step="1" placeholder="230 kcal" />
-  </label>
-
-  <label>Type
-    <select name="type">
-      <option value="push">Poussée</option>
-      <option value="pull">Tirage</option>
-      <option value="lower">Bas du corps</option>
-      <option value="upper">Haut du corps</option>
-      <option value="full">Full body</option>
-      <option value="glutes">Fessiers / jambes</option>
-      <option value="core">Abdos / gainage</option>
-      <option value="other">Autre</option>
-    </select>
-  </label>
-
-  <label>Effort
-    <select name="effort">
-      <option value="5">5 / 10</option>
-      <option value="6">6 / 10</option>
-      <option value="7" selected>7 / 10</option>
-      <option value="8">8 / 10</option>
-      <option value="9">9 / 10</option>
-      <option value="10">10 / 10</option>
-    </select>
-  </label>
-
-  <label class="textarea-label">Commentaire <span>(optionnel)</span>
-    <textarea name="comment" maxlength="120" placeholder="Ex : hip thrust, tirage, séance jambes…"></textarea>
-  </label>
-
-  <button class="btn btn-primary wide" type="submit">Enregistrer la séance</button>
-</form>
+          <form id="strength-form" class="form-card">
+            <label>Date
+              <input name="date" type="date" required />
+            </label>
+            <label>Nom séance
+              <input name="name" type="text" placeholder="Ex : Tirage A, Poussée B..." required />
+            </label>
+            <label>Durée
+              <input name="duration" type="number" min="1" step="1" placeholder="64 min" required />
+            </label>
+            <label>Séries
+              <input name="totalSets" type="number" min="1" step="1" placeholder="26" />
+            </label>
+            <label>Volume
+              <input name="totalVolume" type="number" min="0" step="1" placeholder="5175 kg" />
+            </label>
+            <label>Calories
+              <input name="calories" type="number" min="0" step="1" placeholder="230 kcal" />
+            </label>
+            <label>Type
+              <select name="type">
+                <option value="push">Poussée</option>
+                <option value="pull">Tirage</option>
+                <option value="lower">Bas du corps</option>
+                <option value="upper">Haut du corps</option>
+                <option value="full">Full body</option>
+                <option value="glutes">Fessiers / jambes</option>
+                <option value="core">Abdos / gainage</option>
+                <option value="other">Autre</option>
+              </select>
+            </label>
+            <label>Effort
+              <select name="effort">
+                <option value="5">5 / 10</option>
+                <option value="6">6 / 10</option>
+                <option value="7" selected>7 / 10</option>
+                <option value="8">8 / 10</option>
+                <option value="9">9 / 10</option>
+                <option value="10">10 / 10</option>
+              </select>
+            </label>
+            <label class="textarea-label">Commentaire <span>(optionnel)</span>
+              <textarea name="comment" maxlength="120" placeholder="Ex : hip thrust, tirage, séance jambes…"></textarea>
+            </label>
+            <button class="btn btn-primary wide" type="submit">Enregistrer la séance</button>
+          </form>
         </section>
 
         <section id="view-measure-form" class="view">
@@ -276,9 +262,6 @@
             <label>Bras
               <input name="arm" type="number" min="10" step="0.1" placeholder="30 cm" required />
             </label>
-            <label>Poitrine
-              <input name="chest" type="number" min="30" step="0.1" placeholder="optionnel" />
-            </label>
             <label class="textarea-label">Commentaire <span>(optionnel)</span>
               <textarea name="comment" maxlength="120" placeholder="Ex : matin à jeun, fin de cycle…"></textarea>
             </label>
@@ -292,9 +275,7 @@
             <div class="trophy">🏆</div>
             <h2>Belle séance ! 🔥</h2>
             <p>Tu peux être fière de toi</p>
-
             <dl id="summary-list" class="summary-list"></dl>
-
             <button class="btn btn-primary wide" data-nav="walks">Voir mes séances</button>
           </article>
         </section>
@@ -304,27 +285,20 @@
             <button class="back-btn" data-nav="dashboard">‹</button>
             <h2>Mes séances de marche</h2>
           </header>
-
           <div class="tabs">
             <button class="tab active" data-tab="walk-list">Liste</button>
             <button class="tab" data-tab="walk-charts">Graphiques</button>
           </div>
-
           <section id="walk-list" class="tab-panel active">
             <div id="walk-list-items" class="history-list"></div>
             <button id="btn-filter" class="btn btn-primary mini">☰ Filtrer</button>
           </section>
-
           <section id="walk-charts" class="tab-panel">
             <article class="chart-card">
-              <div class="row between">
-                <strong>7 derniers jours</strong>
-                <span class="muted">⌄</span>
-              </div>
+              <div class="row between"><strong>7 derniers jours</strong><span class="muted">⌄</span></div>
               <div id="distance-bars" class="bar-chart"></div>
               <div class="chart-footer">Distance (km) <span id="distance-total"></span></div>
             </article>
-
             <article class="chart-card">
               <div id="calorie-bars" class="bar-chart"></div>
               <div class="chart-footer">Calories actives <span id="calorie-total"></span></div>
@@ -332,28 +306,21 @@
           </section>
         </section>
 
-
         <section id="view-strength" class="view">
           <header class="tab-header">
             <button class="back-btn" data-nav="dashboard">‹</button>
             <h2>Mes séances de musculation</h2>
           </header>
-
           <div class="tabs">
             <button class="tab active" data-tab="strength-list-panel">Liste</button>
             <button class="tab" data-tab="strength-chart-panel">Graphiques</button>
           </div>
-
           <section id="strength-list-panel" class="tab-panel active">
             <div id="strength-list-items" class="history-list"></div>
           </section>
-
           <section id="strength-chart-panel" class="tab-panel">
             <article class="chart-card">
-              <div class="row between">
-                <strong>7 dernières séances</strong>
-                <span class="muted">⌄</span>
-              </div>
+              <div class="row between"><strong>7 dernières séances</strong><span class="muted">⌄</span></div>
               <div id="strength-bars" class="bar-chart"></div>
               <div class="chart-footer">Durée (min) <span id="strength-total"></span></div>
             </article>
@@ -365,18 +332,13 @@
             <button class="back-btn" data-nav="dashboard">‹</button>
             <h2>Mes mensurations</h2>
           </header>
-
           <div class="tabs">
             <button class="tab active" data-tab="measure-chart-panel">Graphique</button>
             <button class="tab" data-tab="measure-list-panel">Liste</button>
           </div>
-
           <section id="measure-chart-panel" class="tab-panel active">
             <article class="chart-card">
-              <div class="row between">
-                <strong>Évolution</strong>
-                <span class="muted">Taille / Hanches / Cuisse</span>
-              </div>
+              <div class="row between"><strong>Évolution</strong><span class="muted">Taille / Hanches / Cuisse</span></div>
               <svg id="measure-line" viewBox="0 0 320 180" role="img" aria-label="Evolution des mensurations"></svg>
               <div class="legend">
                 <span><i class="dot waist"></i>Taille</span>
@@ -385,7 +347,6 @@
               </div>
             </article>
           </section>
-
           <section id="measure-list-panel" class="tab-panel">
             <div id="measure-list-items" class="history-list"></div>
           </section>
@@ -396,35 +357,22 @@
             <button class="back-btn" data-nav="dashboard">‹</button>
             <h2>Mon poids</h2>
           </header>
-
           <div class="tabs">
             <button class="tab active" data-tab="weight-chart-panel">Graphique</button>
             <button class="tab" data-tab="weight-list-panel">Liste</button>
           </div>
-
           <section id="weight-chart-panel" class="tab-panel active">
             <article class="chart-card">
-              <div class="row between">
-                <strong>3 mois</strong>
-                <span class="muted">⌄</span>
-              </div>
+              <div class="row between"><strong>3 mois</strong><span class="muted">⌄</span></div>
               <div class="mini-label">Poids (kg) <span id="weight-delta"></span></div>
               <svg id="weight-line" viewBox="0 0 320 180" role="img" aria-label="Evolution du poids"></svg>
             </article>
-
             <article class="weight-mini-card">
-              <div>
-                <span>Poids actuel</span>
-                <strong><span id="weight-current">79,5</span> kg</strong>
-              </div>
-              <div>
-                <span>Objectif</span>
-                <strong><span id="weight-target">65,0</span> kg</strong>
-              </div>
+              <div><span>Poids actuel</span><strong><span id="weight-current">79,5</span> kg</strong></div>
+              <div><span>Objectif</span><strong><span id="weight-target">65,0</span> kg</strong></div>
               <div class="progress"><div id="weight-progress" class="progress-fill"></div></div>
             </article>
           </section>
-
           <section id="weight-list-panel" class="tab-panel">
             <div id="weight-list-items" class="history-list"></div>
           </section>
@@ -435,7 +383,6 @@
             <button class="back-btn" data-back="add">‹</button>
             <h2>Nouveau poids</h2>
           </header>
-
           <form id="weight-form" class="form-card">
             <label>Date
               <input name="date" type="date" required />
@@ -475,7 +422,6 @@
               <div><dt>Pentes disponibles</dt><dd>0 % / 1,29 % / 5,24 %</dd></div>
             </dl>
           </article>
-
 
           <article class="settings-card">
             <h3>Modifier mes informations</h3>
@@ -521,14 +467,13 @@
   </div>
 
   <script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js")
-        .catch((error) => console.warn("Service worker non enregistré :", error));
-    });
-  }
-</script>
-  
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js")
+          .catch((error) => console.warn("Service worker non enregistré :", error));
+      });
+    }
+  </script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
