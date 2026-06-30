@@ -46,6 +46,14 @@ const fmtDayLetter = (iso) => {
   return date.toLocaleDateString("fr-FR", { weekday: "short" }).slice(0, 1).toUpperCase();
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
 const isConfigReady = () =>
   firebaseConfig?.apiKey &&
   !Object.values(firebaseConfig).some((value) => String(value).includes("REMPLACE_MOI"));
@@ -80,9 +88,9 @@ const SAMPLE_WEIGHTS = [
 ];
 
 const SAMPLE_STRENGTH = [
-  { date:"2026-06-23", duration:45, type:"upper", effort:7, comment:"Haut du corps" },
-  { date:"2026-06-25", duration:50, type:"lower", effort:8, comment:"Bas du corps" },
-  { date:"2026-06-26", duration:40, type:"full", effort:7, comment:"Full body" }
+  { date:"2026-06-23", name:"Haut du corps", duration:45, totalSets:null, totalVolume:null, calories:null, type:"upper", effort:7, comment:"Haut du corps" },
+  { date:"2026-06-25", name:"Bas du corps", duration:50, totalSets:null, totalVolume:null, calories:null, type:"lower", effort:8, comment:"Bas du corps" },
+  { date:"2026-06-26", name:"Full body", duration:40, totalSets:null, totalVolume:null, calories:null, type:"full", effort:7, comment:"Full body" }
 ];
 
 const SAMPLE_MEASUREMENTS = [
@@ -182,96 +190,102 @@ async function loadRemote() {
   if (!state.measurements.length) state.measurements = structuredClone(SAMPLE_MEASUREMENTS);
 }
 
-async function addWalk(walk) {
-  state.walks = [walk, ...state.walks].sort((a,b) => b.date.localeCompare(a.date));
-
-  if (firebase && state.user) {
-    await addDoc(collection(firebase.db, "users", state.user.uid, "walks"), {
-      ...walk,
-      createdAt: serverTimestamp()
-    });
-  } else {
-    saveLocal();
-  }
+function sortWalks() {
+  state.walks.sort((a,b) => b.date.localeCompare(a.date));
 }
 
-async function addWeight(weightEntry) {
-  state.weights = [...state.weights, weightEntry].sort((a,b) => a.date.localeCompare(b.date));
-
-  if (firebase && state.user) {
-    await addDoc(collection(firebase.db, "users", state.user.uid, "weights"), {
-      ...weightEntry,
-      createdAt: serverTimestamp()
-    });
-  } else {
-    saveLocal();
-  }
+function sortWeights() {
+  state.weights.sort((a,b) => a.date.localeCompare(b.date));
 }
 
-async function addStrength(entry) {
+function sortStrength() {
+  state.strengthSessions.sort((a,b) => b.date.localeCompare(a.date));
+}
+
+function sortMeasurements() {
+  state.measurements.sort((a,b) => a.date.localeCompare(b.date));
+}
+
+async function addEntry(collectionName, entry) {
   if (firebase && state.user) {
-    const docRef = await addDoc(collection(firebase.db, "users", state.user.uid, "strengthSessions"), {
+    const docRef = await addDoc(collection(firebase.db, "users", state.user.uid, collectionName), {
       ...entry,
       createdAt: serverTimestamp()
     });
-
-    state.strengthSessions = [{ ...entry, id: docRef.id }, ...state.strengthSessions].sort((a,b) => b.date.localeCompare(a.date));
-  } else {
-    state.strengthSessions = [entry, ...state.strengthSessions].sort((a,b) => b.date.localeCompare(a.date));
-    saveLocal();
+    return { ...entry, id: docRef.id };
   }
+  return entry;
 }
 
-async function deleteStrength(entryId, index) {
-  const confirmDelete = confirm("Supprimer cette séance muscu ?");
-  if (!confirmDelete) return;
-
-  state.strengthSessions.splice(index, 1);
-
+async function updateEntry(collectionName, entryId, updates) {
   if (firebase && state.user && entryId) {
-    await deleteDoc(doc(firebase.db, "users", state.user.uid, "strengthSessions", entryId));
-  } else {
-    saveLocal();
-  }
-
-  render();
-}
-
-async function updateStrength(entryId, index, updates) {
-  state.strengthSessions[index] = {
-    ...state.strengthSessions[index],
-    ...updates
-  };
-
-  if (firebase && state.user && entryId) {
-    await updateDoc(doc(firebase.db, "users", state.user.uid, "strengthSessions", entryId), {
+    await updateDoc(doc(firebase.db, "users", state.user.uid, collectionName, entryId), {
       ...updates,
       updatedAt: serverTimestamp()
     });
   } else {
     saveLocal();
   }
-
-  render();
 }
 
-function parseOptionalNumber(value) {
-  if (value === null) return null;
-  if (String(value).trim() === "") return null;
-  return Number(value);
-}
-
-async function addMeasurement(entry) {
-  state.measurements = [...state.measurements, entry].sort((a,b) => a.date.localeCompare(b.date));
-
-  if (firebase && state.user) {
-    await addDoc(collection(firebase.db, "users", state.user.uid, "measurements"), {
-      ...entry,
-      createdAt: serverTimestamp()
-    });
+async function deleteEntry(collectionName, entryId) {
+  if (firebase && state.user && entryId) {
+    await deleteDoc(doc(firebase.db, "users", state.user.uid, collectionName, entryId));
   } else {
     saveLocal();
   }
+}
+
+async function addWalk(walk) {
+  const saved = await addEntry("walks", walk);
+  state.walks = [saved, ...state.walks];
+  sortWalks();
+  if (!firebase || !state.user) saveLocal();
+}
+
+async function addWeight(weightEntry) {
+  const saved = await addEntry("weights", weightEntry);
+  state.weights = [...state.weights, saved];
+  sortWeights();
+  if (!firebase || !state.user) saveLocal();
+}
+
+async function addStrength(entry) {
+  const saved = await addEntry("strengthSessions", entry);
+  state.strengthSessions = [saved, ...state.strengthSessions];
+  sortStrength();
+  if (!firebase || !state.user) saveLocal();
+}
+
+async function addMeasurement(entry) {
+  const saved = await addEntry("measurements", entry);
+  state.measurements = [...state.measurements, saved];
+  sortMeasurements();
+  if (!firebase || !state.user) saveLocal();
+}
+
+async function removeArrayEntry(arrayName, collectionName, index, confirmText) {
+  const entry = state[arrayName][index];
+  if (!entry) return;
+  if (!confirm(confirmText)) return;
+
+  state[arrayName].splice(index, 1);
+  await deleteEntry(collectionName, entry.id || null);
+  render();
+}
+
+async function updateArrayEntry(arrayName, collectionName, index, updates, sorter) {
+  const entry = state[arrayName][index];
+  if (!entry) return;
+
+  state[arrayName][index] = {
+    ...entry,
+    ...updates
+  };
+  if (sorter) sorter();
+
+  await updateEntry(collectionName, entry.id || null, updates);
+  render();
 }
 
 async function saveProfile(profile) {
@@ -285,6 +299,29 @@ async function saveProfile(profile) {
   } else {
     saveLocal();
   }
+}
+
+function parseOptionalNumber(value) {
+  if (value === null) return null;
+  if (String(value).trim() === "") return null;
+  return Number(value);
+}
+
+function promptText(label, value) {
+  const next = prompt(label, value ?? "");
+  if (next === null) return null;
+  return next;
+}
+
+function promptRequiredNumber(label, value) {
+  const next = prompt(label, value ?? "");
+  if (next === null) return null;
+  const number = Number(String(next).replace(",", "."));
+  if (Number.isNaN(number)) {
+    alert("Valeur numérique invalide.");
+    return null;
+  }
+  return number;
 }
 
 function currentWeight() {
@@ -364,6 +401,12 @@ function strengthTypeLabel(type) {
   return labels[type] || "Autre";
 }
 
+function armsLabel(arms) {
+  if (arms === "partial") return "Partiel";
+  if (arms === "full") return "Appuyés";
+  return "Non";
+}
+
 function navigate(viewName) {
   qsa(".view").forEach((view) => view.classList.remove("active"));
   qs(`#view-${viewName}`)?.classList.add("active");
@@ -424,6 +467,7 @@ function renderDashboard() {
 
 function renderWalkList() {
   const container = qs("#walk-list-items");
+  if (!container) return;
   container.innerHTML = "";
 
   state.walks
@@ -431,6 +475,7 @@ function renderWalkList() {
     .sort((a,b) => b.date.localeCompare(a.date))
     .slice(0, 30)
     .forEach((walk) => {
+      const realIndex = state.walks.findIndex((x) => x === walk);
       const card = document.createElement("article");
       card.className = "history-card";
       card.innerHTML = `
@@ -438,10 +483,14 @@ function renderWalkList() {
         <div>
           <strong>${fmtDateShort(walk.date)}</strong>
           <small>${fmtNumber(walk.distance, 2)} km • ${walk.duration || 0} min • ${fmtInt(walk.calories)} kcal</small>
+          <div class="card-actions">
+            <button class="mini-action edit-walk" data-index="${realIndex}">Modifier</button>
+            <button class="mini-action danger delete-walk" data-index="${realIndex}">Supprimer</button>
+          </div>
         </div>
         <div class="right">
           ↑ ${fmtNumber(walk.incline || 0, 2)}%
-          <span>${walk.arms === "partial" ? "Partiel" : walk.arms === "full" ? "Appuyés" : "Non"}</span>
+          <span>${armsLabel(walk.arms)}</span>
         </div>
       `;
       container.appendChild(card);
@@ -523,19 +572,28 @@ function renderWeightList() {
   const container = qs("#weight-list-items");
   if (!container) return;
   container.innerHTML = "";
-  state.weights.slice().sort((a,b) => b.date.localeCompare(a.date)).forEach((entry) => {
-    const card = document.createElement("article");
-    card.className = "history-card";
-    card.innerHTML = `
-      <div class="avatar">⚖️</div>
-      <div>
-        <strong>${fmtDateShort(entry.date)}</strong>
-        <small>${entry.comment || "Poids enregistré"}</small>
-      </div>
-      <div class="right">${fmtNumber(entry.weight, 1)} kg</div>
-    `;
-    container.appendChild(card);
-  });
+
+  state.weights
+    .slice()
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .forEach((entry) => {
+      const realIndex = state.weights.findIndex((x) => x === entry);
+      const card = document.createElement("article");
+      card.className = "history-card";
+      card.innerHTML = `
+        <div class="avatar">⚖️</div>
+        <div>
+          <strong>${fmtDateShort(entry.date)}</strong>
+          <small>${escapeHtml(entry.comment || "Poids enregistré")}</small>
+          <div class="card-actions">
+            <button class="mini-action edit-weight" data-index="${realIndex}">Modifier</button>
+            <button class="mini-action danger delete-weight" data-index="${realIndex}">Supprimer</button>
+          </div>
+        </div>
+        <div class="right">${fmtNumber(entry.weight, 1)} kg</div>
+      `;
+      container.appendChild(card);
+    });
 }
 
 function renderStrength() {
@@ -553,16 +611,16 @@ function renderStrength() {
       card.innerHTML = `
         <div class="avatar">🏋️</div>
         <div>
-          <strong>${entry.name || strengthTypeLabel(entry.type)}</strong>
+          <strong>${escapeHtml(entry.name || strengthTypeLabel(entry.type))}</strong>
           <small>${fmtDateShort(entry.date)} • ${entry.duration || 0} min • ${entry.totalSets || "-"} séries</small>
           <div class="card-actions">
-            <button class="mini-action edit-strength" data-index="${realIndex}" data-id="${entry.id || ""}">Modifier</button>
-            <button class="mini-action danger delete-strength" data-index="${realIndex}" data-id="${entry.id || ""}">Supprimer</button>
+            <button class="mini-action edit-strength" data-index="${realIndex}">Modifier</button>
+            <button class="mini-action danger delete-strength" data-index="${realIndex}">Supprimer</button>
           </div>
         </div>
         <div class="right">
           ${entry.totalVolume ? fmtInt(entry.totalVolume) + " kg" : "✓"}
-          <span>${entry.calories ? fmtInt(entry.calories) + " kcal" : entry.comment || "Séance faite"}</span>
+          <span>${escapeHtml(entry.calories ? fmtInt(entry.calories) + " kcal" : entry.comment || "Séance faite")}</span>
         </div>
       `;
       container.appendChild(card);
@@ -584,6 +642,7 @@ function renderMeasurements() {
     .slice()
     .sort((a,b) => b.date.localeCompare(a.date))
     .forEach((entry) => {
+      const realIndex = state.measurements.findIndex((x) => x === entry);
       const card = document.createElement("article");
       card.className = "history-card";
       card.innerHTML = `
@@ -591,10 +650,14 @@ function renderMeasurements() {
         <div>
           <strong>${fmtDateShort(entry.date)}</strong>
           <small>Taille ${fmtNumber(entry.waist, 1)} cm • Hanches ${fmtNumber(entry.hips, 1)} cm • Cuisse ${fmtNumber(entry.thigh, 1)} cm</small>
+          <div class="card-actions">
+            <button class="mini-action edit-measure" data-index="${realIndex}">Modifier</button>
+            <button class="mini-action danger delete-measure" data-index="${realIndex}">Supprimer</button>
+          </div>
         </div>
         <div class="right">
           Bras ${fmtNumber(entry.arm, 1)}
-          <span>${entry.comment || "Mensurations"}</span>
+          <span>${escapeHtml(entry.comment || "Mensurations")}</span>
         </div>
       `;
       list.appendChild(card);
@@ -670,6 +733,146 @@ function render() {
   renderSummary();
 }
 
+function editWalk(index) {
+  const entry = state.walks[index];
+  if (!entry) return;
+
+  const date = promptText("Date", entry.date);
+  if (date === null) return;
+  const distance = promptRequiredNumber("Distance en km", entry.distance);
+  if (distance === null) return;
+  const duration = promptRequiredNumber("Durée en minutes", entry.duration);
+  if (duration === null) return;
+  const incline = promptRequiredNumber("Pente en %", entry.incline || 0);
+  if (incline === null) return;
+  const arms = promptText("Bras appuyés : none, partial ou full", entry.arms || "none");
+  if (arms === null) return;
+  const comment = promptText("Commentaire", entry.comment || "");
+  if (comment === null) return;
+
+  const normalizedArms = ["none", "partial", "full"].includes(arms) ? arms : "none";
+  const computed = calcWalk(distance, duration, incline, normalizedArms);
+
+  updateArrayEntry("walks", "walks", index, {
+    date,
+    distance,
+    duration,
+    incline,
+    arms: normalizedArms,
+    comment: comment || "",
+    ...computed
+  }, sortWalks);
+}
+
+function editWeight(index) {
+  const entry = state.weights[index];
+  if (!entry) return;
+
+  const date = promptText("Date", entry.date);
+  if (date === null) return;
+  const weight = promptRequiredNumber("Poids en kg", entry.weight);
+  if (weight === null) return;
+  const comment = promptText("Commentaire", entry.comment || "");
+  if (comment === null) return;
+
+  updateArrayEntry("weights", "weights", index, {
+    date,
+    weight,
+    comment: comment || ""
+  }, sortWeights);
+}
+
+function editStrength(index) {
+  const entry = state.strengthSessions[index];
+  if (!entry) return;
+
+  const name = promptText("Nom de la séance", entry.name || "");
+  if (name === null) return;
+  const duration = promptRequiredNumber("Durée en minutes", entry.duration || "");
+  if (duration === null) return;
+  const totalSets = promptText("Nombre de séries", entry.totalSets || "");
+  if (totalSets === null) return;
+  const totalVolume = promptText("Volume total en kg", entry.totalVolume || "");
+  if (totalVolume === null) return;
+  const calories = promptText("Calories", entry.calories || "");
+  if (calories === null) return;
+  const effort = promptRequiredNumber("Effort /10", entry.effort || "");
+  if (effort === null) return;
+  const comment = promptText("Commentaire", entry.comment || "");
+  if (comment === null) return;
+
+  updateArrayEntry("strengthSessions", "strengthSessions", index, {
+    name: name || "Séance muscu",
+    duration,
+    totalSets: parseOptionalNumber(totalSets),
+    totalVolume: parseOptionalNumber(totalVolume),
+    calories: parseOptionalNumber(calories),
+    effort,
+    comment: comment || ""
+  }, sortStrength);
+}
+
+function editMeasurement(index) {
+  const entry = state.measurements[index];
+  if (!entry) return;
+
+  const date = promptText("Date", entry.date);
+  if (date === null) return;
+  const waist = promptRequiredNumber("Taille en cm", entry.waist);
+  if (waist === null) return;
+  const hips = promptRequiredNumber("Hanches en cm", entry.hips);
+  if (hips === null) return;
+  const thigh = promptRequiredNumber("Cuisse en cm", entry.thigh);
+  if (thigh === null) return;
+  const arm = promptRequiredNumber("Bras en cm", entry.arm);
+  if (arm === null) return;
+  const comment = promptText("Commentaire", entry.comment || "");
+  if (comment === null) return;
+
+  updateArrayEntry("measurements", "measurements", index, {
+    date,
+    waist,
+    hips,
+    thigh,
+    arm,
+    comment: comment || ""
+  }, sortMeasurements);
+}
+
+function bindHistoryActions() {
+  qs("#walk-list-items")?.addEventListener("click", async (event) => {
+    const editButton = event.target.closest(".edit-walk");
+    const deleteButton = event.target.closest(".delete-walk");
+
+    if (editButton) editWalk(Number(editButton.dataset.index));
+    if (deleteButton) await removeArrayEntry("walks", "walks", Number(deleteButton.dataset.index), "Supprimer cette séance de marche ?");
+  });
+
+  qs("#weight-list-items")?.addEventListener("click", async (event) => {
+    const editButton = event.target.closest(".edit-weight");
+    const deleteButton = event.target.closest(".delete-weight");
+
+    if (editButton) editWeight(Number(editButton.dataset.index));
+    if (deleteButton) await removeArrayEntry("weights", "weights", Number(deleteButton.dataset.index), "Supprimer ce poids ?");
+  });
+
+  qs("#strength-list-items")?.addEventListener("click", async (event) => {
+    const editButton = event.target.closest(".edit-strength");
+    const deleteButton = event.target.closest(".delete-strength");
+
+    if (editButton) editStrength(Number(editButton.dataset.index));
+    if (deleteButton) await removeArrayEntry("strengthSessions", "strengthSessions", Number(deleteButton.dataset.index), "Supprimer cette séance muscu ?");
+  });
+
+  qs("#measure-list-items")?.addEventListener("click", async (event) => {
+    const editButton = event.target.closest(".edit-measure");
+    const deleteButton = event.target.closest(".delete-measure");
+
+    if (editButton) editMeasurement(Number(editButton.dataset.index));
+    if (deleteButton) await removeArrayEntry("measurements", "measurements", Number(deleteButton.dataset.index), "Supprimer ces mensurations ?");
+  });
+}
+
 function bindEvents() {
   let googleLoginInProgress = false;
 
@@ -710,10 +913,6 @@ function bindEvents() {
 
   qsa("[data-back]").forEach((btn) => {
     btn.addEventListener("click", () => navigate(btn.dataset.back));
-  });
-
-  qsa(".bottom-nav button").forEach((btn) => {
-    btn.addEventListener("click", () => navigate(btn.dataset.nav));
   });
 
   qsa(".tab").forEach((tab) => {
@@ -852,58 +1051,7 @@ function bindEvents() {
     });
   }
 
-  const strengthList = qs("#strength-list-items");
-
-  if (strengthList) {
-    strengthList.addEventListener("click", async (event) => {
-      const deleteButton = event.target.closest(".delete-strength");
-      const editButton = event.target.closest(".edit-strength");
-
-      if (deleteButton) {
-        const index = Number(deleteButton.dataset.index);
-        const id = deleteButton.dataset.id || null;
-        await deleteStrength(id, index);
-        return;
-      }
-
-      if (editButton) {
-        const index = Number(editButton.dataset.index);
-        const id = editButton.dataset.id || null;
-        const entry = state.strengthSessions[index];
-
-        const name = prompt("Nom de la séance", entry.name || "");
-        if (name === null) return;
-
-        const duration = prompt("Durée en minutes", entry.duration || "");
-        if (duration === null) return;
-
-        const totalSets = prompt("Nombre de séries", entry.totalSets || "");
-        if (totalSets === null) return;
-
-        const totalVolume = prompt("Volume total en kg", entry.totalVolume || "");
-        if (totalVolume === null) return;
-
-        const calories = prompt("Calories", entry.calories || "");
-        if (calories === null) return;
-
-        const effort = prompt("Effort /10", entry.effort || "");
-        if (effort === null) return;
-
-        const comment = prompt("Commentaire", entry.comment || "");
-        if (comment === null) return;
-
-        await updateStrength(id, index, {
-          name: name || "Séance muscu",
-          duration: Number(duration),
-          totalSets: parseOptionalNumber(totalSets),
-          totalVolume: parseOptionalNumber(totalVolume),
-          calories: parseOptionalNumber(calories),
-          effort: Number(effort),
-          comment: comment || ""
-        });
-      }
-    });
-  }
+  bindHistoryActions();
 
   qsa("#btn-signout, #btn-signout-top").forEach((btn) => {
     btn.addEventListener("click", async () => {
