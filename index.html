@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#FF8A00" />
+  <meta name="theme-color" content="#EF6F91" />
   <title>FitFlow</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="nutrition.css" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -145,6 +146,14 @@
               </span>
               <b>›</b>
             </button>
+            <button class="choice-card peach" data-open="nutrition-form" data-open-nutrition-form data-meal="breakfast">
+              <span class="choice-icon">🍽️</span>
+              <span>
+                <strong>Nutrition</strong>
+                <em>Ajoute un aliment ou une portion</em>
+              </span>
+              <b>›</b>
+            </button>
           </div>
         </section>
 
@@ -278,6 +287,137 @@
             <dl id="summary-list" class="summary-list"></dl>
             <button class="btn btn-primary wide" data-nav="walks">Voir mes séances</button>
           </article>
+        </section>
+
+        <section id="view-nutrition" class="view">
+          <header class="topbar">
+            <div>
+              <h2>Nutrition 🍽️</h2>
+              <p>Calories, macros et déficit estimé au même endroit.</p>
+            </div>
+            <button class="icon-btn" data-open="nutrition-form" data-open-nutrition-form data-meal="breakfast" title="Ajouter un aliment">＋</button>
+          </header>
+
+          <article class="nutrition-hero">
+            <div class="hero-top">
+              <div>
+                <h3>Aujourd’hui</h3>
+                <span id="nutrition-left">Restant : 0 kcal</span>
+              </div>
+              <input id="nutrition-date" class="nutrition-date" type="date" />
+            </div>
+            <div class="calorie-big"><span id="nutrition-consumed">0</span><span> / <span id="nutrition-target">1650</span> kcal</span></div>
+            <div class="progress"><div id="nutrition-calorie-progress" class="progress-fill"></div></div>
+          </article>
+
+          <div class="nutrition-mini-grid">
+            <article class="nutrition-mini-card">
+              <span>Déficit estimé</span>
+              <strong id="nutrition-deficit" class="deficit-value">0 kcal</strong>
+            </article>
+            <article class="nutrition-mini-card">
+              <span>Dépenses totales</span>
+              <strong id="nutrition-burned">0 kcal</strong>
+            </article>
+            <article class="nutrition-mini-card">
+              <span>Métabolisme basal</span>
+              <strong id="nutrition-bmr">0 kcal</strong>
+            </article>
+            <article class="nutrition-mini-card">
+              <span>Activités FitFlow</span>
+              <strong id="nutrition-activity">0 kcal</strong>
+            </article>
+          </div>
+
+          <article class="nutrition-card">
+            <h3>Macros du jour</h3>
+            <div id="nutrition-macros" class="macro-list"></div>
+          </article>
+
+          <article class="nutrition-card">
+            <h3>Coach Nutrition</h3>
+            <ul id="nutrition-coach-list" class="coach-list"></ul>
+          </article>
+
+          <article class="nutrition-card">
+            <div class="row between">
+              <h3>Repas</h3>
+              <button class="mini-action" data-open="nutrition-form" data-open-nutrition-form data-meal="breakfast">+ Aliment</button>
+            </div>
+            <div id="nutrition-meals" class="nutrition-meals"></div>
+          </article>
+        </section>
+
+        <section id="view-nutrition-form" class="view">
+          <header class="form-header">
+            <button class="back-btn" data-nav="nutrition">‹</button>
+            <h2>Ajouter un aliment</h2>
+          </header>
+
+          <form id="nutrition-form" class="form-card">
+            <label>Date
+              <input name="date" type="date" required />
+            </label>
+            <label>Repas
+              <select name="meal" required>
+                <option value="breakfast">Petit-déjeuner</option>
+                <option value="lunch">Déjeuner</option>
+                <option value="dinner">Dîner</option>
+                <option value="snack">Collation</option>
+              </select>
+            </label>
+            <label>Aliment
+              <input name="name" type="text" placeholder="Ex : Barre protéinée chocolat" required />
+            </label>
+            <label>Référence
+              <select name="referenceType">
+                <option value="per100">Valeurs pour 100 g / 100 ml</option>
+                <option value="portion">Valeurs par portion</option>
+              </select>
+            </label>
+            <p id="nutrition-reference-help" class="form-help">Les valeurs ci-dessous correspondent à 100 g ou 100 ml. FitFlow calcule selon la quantité consommée.</p>
+            <label>Quantité consommée
+              <input name="quantity" type="number" min="0" step="0.01" placeholder="Ex : 200" required />
+            </label>
+            <label>Unité affichée
+              <select name="unit">
+                <option value="g">g</option>
+                <option value="ml">ml</option>
+                <option value="portion">portion</option>
+                <option value="barre">barre</option>
+                <option value="paquet">paquet</option>
+                <option value="sachet">sachet</option>
+                <option value="yaourt">yaourt</option>
+                <option value="pièce">pièce</option>
+              </select>
+            </label>
+            <label class="portion-field hidden">Nom portion
+              <input name="servingName" type="text" placeholder="barre, paquet, yaourt…" />
+            </label>
+            <label class="portion-field hidden">Poids portion <span>(optionnel)</span>
+              <input name="servingWeight" type="number" min="0" step="0.1" placeholder="Ex : 50 g" />
+            </label>
+            <label>Calories réf.
+              <input name="baseCalories" type="number" min="0" step="1" placeholder="Ex : 190" required />
+            </label>
+            <label>Protéines réf.
+              <input name="baseProtein" type="number" min="0" step="0.1" placeholder="Ex : 20" required />
+            </label>
+            <label>Glucides réf.
+              <input name="baseCarbs" type="number" min="0" step="0.1" placeholder="Ex : 18" required />
+            </label>
+            <label>Lipides réf.
+              <input name="baseFat" type="number" min="0" step="0.1" placeholder="Ex : 6" required />
+            </label>
+            <label>Fibres réf.
+              <input name="baseFiber" type="number" min="0" step="0.1" placeholder="Ex : 5" required />
+            </label>
+            <label class="checkbox-label">
+              <input name="favorite" type="checkbox" />
+              <span>Ajouter à mes favoris plus tard</span>
+            </label>
+            <button class="btn btn-primary wide" type="submit">Enregistrer l’aliment</button>
+          </form>
         </section>
 
         <section id="view-walks" class="view">
@@ -424,6 +564,37 @@
           </article>
 
           <article class="settings-card">
+            <h3>Objectifs nutrition</h3>
+            <form id="nutrition-settings-form" class="profile-form">
+              <label>Âge
+                <input name="age" type="number" min="10" step="1" required />
+              </label>
+              <label>Calories
+                <input name="calorieTarget" type="number" min="1000" step="10" required />
+              </label>
+              <label>Protéines g/kg
+                <input name="proteinPerKg" type="number" min="0.8" step="0.1" required />
+              </label>
+              <label>Lipides min.
+                <input name="fatMin" type="number" min="20" step="1" required />
+              </label>
+              <label>Fibres
+                <input name="fiberTarget" type="number" min="10" step="1" required />
+              </label>
+              <label>Eau cible
+                <input name="waterTarget" type="number" min="0.5" step="0.1" required />
+              </label>
+              <label>Déficit cible
+                <input name="deficitTarget" type="number" min="0" step="50" required />
+              </label>
+              <label>Alerte déficit
+                <input name="deficitHighThreshold" type="number" min="300" step="50" required />
+              </label>
+              <button class="btn btn-primary wide" type="submit">Enregistrer les objectifs nutrition</button>
+            </form>
+          </article>
+
+          <article class="settings-card">
             <h3>Modifier mes informations</h3>
             <form id="profile-form" class="profile-form">
               <label>Prénom
@@ -457,6 +628,7 @@
         <nav class="bottom-nav">
           <button data-nav="dashboard" class="active">⌂<span>Accueil</span></button>
           <button data-nav="add">＋<span>Ajouter</span></button>
+          <button data-nav="nutrition">🍽️<span>Nutri</span></button>
           <button data-nav="walks">🚶<span>Marche</span></button>
           <button data-nav="strength">🏋️<span>Muscu</span></button>
           <button data-nav="settings">⚙<span>Plus</span></button>
@@ -475,5 +647,6 @@
     }
   </script>
   <script type="module" src="app.js"></script>
+  <script type="module" src="nutrition.js"></script>
 </body>
 </html>
