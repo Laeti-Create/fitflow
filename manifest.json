@@ -6,8 +6,8 @@
   "scope": "/fitflow/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FFF4E5",
-  "theme_color": "#FF8A00",
+  "background_color": "#FFF7F8",
+  "theme_color": "#EF6F91",
   "categories": [
     "health",
     "fitness",
