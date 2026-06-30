@@ -1,12 +1,14 @@
-const CACHE_NAME = "fitflow-cache-v4";
+const CACHE_NAME = "fitflow-cache-v5";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
   "/fitflow/index.html",
   "/fitflow/styles.css",
   "/fitflow/nutrition.css",
+  "/fitflow/home-coach.css",
   "/fitflow/app.js",
   "/fitflow/nutrition.js",
+  "/fitflow/home-coach.js",
   "/fitflow/firebase-config.js",
   "/fitflow/manifest.json",
   "/fitflow/icon.svg",
@@ -50,8 +52,6 @@ self.addEventListener("fetch", (event) => {
 
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => {
-        return cached || caches.match("/fitflow/index.html");
-      }))
+      .catch(() => caches.match(request).then((cached) => cached || caches.match("/fitflow/index.html")))
   );
 });
