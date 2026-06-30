@@ -1,10 +1,12 @@
-const CACHE_NAME = "fitflow-cache-v3";
+const CACHE_NAME = "fitflow-cache-v4";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
   "/fitflow/index.html",
   "/fitflow/styles.css",
+  "/fitflow/nutrition.css",
   "/fitflow/app.js",
+  "/fitflow/nutrition.js",
   "/fitflow/firebase-config.js",
   "/fitflow/manifest.json",
   "/fitflow/icon.svg",
