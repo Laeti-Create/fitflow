@@ -1,13 +1,13 @@
 /* Accueil dynamique */
 .walker{
-  width:132px;
-  height:132px;
+  width:168px;
+  height:138px;
   left:50%;
-  bottom:34px;
+  bottom:30px;
   display:block;
   transform:translateX(-50%);
   font-size:0;
-  filter:drop-shadow(0 16px 18px rgba(89,61,75,.22));
+  filter:drop-shadow(0 16px 18px rgba(89,61,75,.18));
 }
 
 .fitflow-walker-svg{
@@ -21,18 +21,18 @@
   content:"";
   position:absolute;
   left:50%;
-  bottom:28px;
-  width:150px;
-  height:34px;
+  bottom:24px;
+  width:162px;
+  height:30px;
   transform:translateX(-50%);
   border-radius:50%;
-  background:rgba(255,255,255,.20);
+  background:rgba(255,255,255,.18);
   filter:blur(1px);
 }
 
 @keyframes fitflowWalkFloat{
-  0%,100%{transform:translateY(0) rotate(-1deg)}
-  50%{transform:translateY(-4px) rotate(1deg)}
+  0%,100%{transform:translateY(0) rotate(-.5deg)}
+  50%{transform:translateY(-4px) rotate(.5deg)}
 }
 
 .motivation-card{
@@ -43,10 +43,34 @@
   transform:translateY(-1px);
 }
 
+/* Navigation toujours visible */
+.phone{
+  padding-bottom:112px;
+}
+
+.bottom-nav{
+  position:fixed;
+  left:50%;
+  right:auto;
+  bottom:calc(14px + env(safe-area-inset-bottom));
+  width:min(calc(100% - 32px), 398px);
+  transform:translateX(-50%);
+  z-index:30;
+}
+
 @media (max-width:460px){
   .walker{
-    width:122px;
-    height:122px;
-    bottom:34px;
+    width:158px;
+    height:130px;
+    bottom:32px;
+  }
+
+  .phone{
+    padding-bottom:118px;
+  }
+
+  .bottom-nav{
+    width:calc(100% - 20px);
+    bottom:calc(10px + env(safe-area-inset-bottom));
   }
 }
