@@ -38,56 +38,127 @@ function setupFirebase() {
 
 const firebase = setupFirebase();
 
+function currentSeasonConfig() {
+  const month = new Date().getMonth() + 1;
+
+  if (month >= 3 && month <= 5) {
+    return {
+      key: "spring",
+      label: "Printemps",
+      emoji: "🌸",
+      accent: "#EF6F91",
+      accentSoft: "#FFD6DE",
+      secondary: "#7EBD93",
+      background: "#FFF7F8",
+      message: "Élan doux",
+      decoration: `
+        <circle cx="51" cy="50" r="4" fill="#EF6F91" opacity=".85" />
+        <circle cx="58" cy="45" r="3" fill="#F7A8B8" opacity=".9" />
+        <circle cx="65" cy="51" r="4" fill="#EF6F91" opacity=".65" />
+        <path d="M55 61c9 6 19 6 30 0" stroke="#7EBD93" stroke-width="4" stroke-linecap="round" fill="none" />
+      `
+    };
+  }
+
+  if (month >= 6 && month <= 8) {
+    return {
+      key: "summer",
+      label: "Été",
+      emoji: "☀️",
+      accent: "#EF6F91",
+      accentSoft: "#FFF6CF",
+      secondary: "#F7A8B8",
+      background: "#FFF7F8",
+      message: "Énergie solaire",
+      decoration: `
+        <circle cx="64" cy="48" r="16" fill="#FFF6CF" />
+        <circle cx="64" cy="48" r="25" fill="#FFF6CF" opacity=".28" />
+        <path d="M64 17v10M64 69v10M33 48h10M85 48h10M42 26l7 7M79 63l7 7M86 26l-7 7M49 63l-7 7" stroke="#F7A8B8" stroke-width="4" stroke-linecap="round" opacity=".85" />
+      `
+    };
+  }
+
+  if (month >= 9 && month <= 11) {
+    return {
+      key: "autumn",
+      label: "Automne",
+      emoji: "🍂",
+      accent: "#D9826B",
+      accentSoft: "#FFE6D8",
+      secondary: "#C79A6B",
+      background: "#FFF7F2",
+      message: "Régularité",
+      decoration: `
+        <path d="M48 50c13-17 29-15 37 0-15 1-25 9-29 24-9-6-12-14-8-24Z" fill="#D9826B" opacity=".82" />
+        <path d="M58 59c8 1 15-2 23-10" stroke="#8B5E4A" stroke-width="3" stroke-linecap="round" fill="none" opacity=".55" />
+        <path d="M87 76c8 5 18 5 27 0" stroke="#C79A6B" stroke-width="4" stroke-linecap="round" fill="none" opacity=".72" />
+      `
+    };
+  }
+
+  return {
+    key: "winter",
+    label: "Hiver",
+    emoji: "❄️",
+    accent: "#7E97A6",
+    accentSoft: "#EEF3F6",
+    secondary: "#C7C0D4",
+    background: "#F8FAFC",
+    message: "Douceur active",
+    decoration: `
+      <path d="M71 33c-13 6-18 22-10 35 7 12 22 16 34 9-17 1-29-10-29-26 0-8 2-14 5-18Z" fill="#C7C0D4" opacity=".85" />
+      <circle cx="48" cy="48" r="3" fill="#7E97A6" opacity=".75" />
+      <circle cx="96" cy="39" r="3" fill="#7E97A6" opacity=".6" />
+      <path d="M101 73l5 5 5-5M106 68v15" stroke="#7E97A6" stroke-width="3" stroke-linecap="round" opacity=".78" />
+    `
+  };
+}
+
 function injectWalkIllustration() {
   const walker = qs(".walker");
   if (!walker) return;
 
-  walker.setAttribute("aria-label", "Illustration FitFlow : chemin de progression et mouvement");
+  const season = currentSeasonConfig();
+  walker.setAttribute("aria-label", `Illustration FitFlow : cercle de progression ${season.label}`);
   walker.innerHTML = `
-    <svg class="fitflow-walker-svg fitflow-progress-svg" viewBox="0 0 220 180" role="img" aria-hidden="true">
+    <svg class="fitflow-walker-svg fitflow-season-ring-svg" viewBox="0 0 220 180" role="img" aria-hidden="true">
       <defs>
-        <linearGradient id="progressSky" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#FFF7F8" />
-          <stop offset="1" stop-color="#FFE8EE" />
+        <linearGradient id="seasonRing" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="${season.accentSoft}" />
+          <stop offset="1" stop-color="${season.accent}" />
         </linearGradient>
-        <linearGradient id="progressPath" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#F7A8B8" />
-          <stop offset="1" stop-color="#EF6F91" />
+        <linearGradient id="seasonInner" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#FFFFFF" />
+          <stop offset="1" stop-color="${season.background}" />
         </linearGradient>
-        <linearGradient id="progressAccent" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#7E97A6" />
-          <stop offset="1" stop-color="#1F2937" />
-        </linearGradient>
-        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#5C4956" flood-opacity=".18" />
+        <filter id="seasonShadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="14" stdDeviation="10" flood-color="#5C4956" flood-opacity=".16" />
         </filter>
       </defs>
 
-      <circle cx="170" cy="34" r="24" fill="#FFF6CF" opacity=".95" />
-      <circle cx="170" cy="34" r="34" fill="#FFF6CF" opacity=".24" />
-      <path d="M20 132C58 102 91 95 122 106c28 10 45 31 78 21" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="18" stroke-linecap="round" />
-      <path d="M20 132C58 102 91 95 122 106c28 10 45 31 78 21" fill="none" stroke="url(#progressPath)" stroke-width="8" stroke-linecap="round" stroke-dasharray="8 15" />
+      <circle cx="110" cy="90" r="68" fill="url(#seasonInner)" filter="url(#seasonShadow)" />
+      <circle cx="110" cy="90" r="56" fill="none" stroke="#FFFFFF" stroke-width="18" opacity=".78" />
+      <circle cx="110" cy="90" r="56" fill="none" stroke="url(#seasonRing)" stroke-width="11" stroke-linecap="round" stroke-dasharray="240 352" transform="rotate(-92 110 90)" />
+      <circle cx="110" cy="90" r="39" fill="#FFFFFF" opacity=".82" />
 
-      <g filter="url(#softShadow)">
-        <circle cx="43" cy="118" r="14" fill="#FFFFFF" />
-        <circle cx="43" cy="118" r="7" fill="#EF6F91" />
-        <circle cx="90" cy="101" r="14" fill="#FFFFFF" />
-        <path d="M84 101l4 5 9-11" fill="none" stroke="#7EBD93" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
-        <circle cx="137" cy="112" r="14" fill="#FFFFFF" />
-        <path d="M131 112l4 5 9-11" fill="none" stroke="#7EBD93" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      <g class="season-decoration">
+        ${season.decoration}
       </g>
 
-      <g class="progress-shoe" filter="url(#softShadow)">
-        <path d="M114 78c12 4 24 11 34 23 5 6 12 9 22 8l10-1c6 0 11 4 11 9 0 6-5 10-12 10h-55c-15 0-26-7-32-20l-5-12c-3-7 0-14 7-17 6-3 13-3 20 0Z" fill="#FFFFFF" />
-        <path d="M96 88c14 8 27 19 38 33" fill="none" stroke="url(#progressAccent)" stroke-width="8" stroke-linecap="round" />
-        <path d="M134 121h45" stroke="#1F2937" stroke-width="6" stroke-linecap="round" />
-        <path d="M121 92c12 5 23 13 33 25" fill="none" stroke="#EF6F91" stroke-width="5" stroke-linecap="round" />
-        <path d="M130 98l-11 8M140 106l-11 8M150 114l-10 7" stroke="#F7A8B8" stroke-width="4" stroke-linecap="round" />
+      <g filter="url(#seasonShadow)">
+        <circle cx="58" cy="124" r="15" fill="#FFFFFF" />
+        <text x="58" y="130" text-anchor="middle" font-size="17">👣</text>
+        <circle cx="110" cy="30" r="15" fill="#FFFFFF" />
+        <text x="110" y="36" text-anchor="middle" font-size="17">🍽️</text>
+        <circle cx="162" cy="124" r="15" fill="#FFFFFF" />
+        <text x="162" y="130" text-anchor="middle" font-size="17">🏋️</text>
       </g>
 
-      <path d="M43 64h69" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity=".65" />
-      <path d="M34 78h43" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity=".48" />
-      <path d="M35 150h153" stroke="rgba(31,41,55,.12)" stroke-width="9" stroke-linecap="round" />
+      <text x="110" y="83" text-anchor="middle" font-size="12" font-family="Poppins, Arial" font-weight="700" fill="#7C7280">${season.label}</text>
+      <text x="110" y="103" text-anchor="middle" font-size="18" font-family="Poppins, Arial" font-weight="800" fill="#1F2937">FitFlow</text>
+      <text x="110" y="121" text-anchor="middle" font-size="10" font-family="Poppins, Arial" font-weight="600" fill="${season.accent}">${season.message}</text>
+
+      <path d="M38 156h144" stroke="rgba(31,41,55,.10)" stroke-width="8" stroke-linecap="round" />
     </svg>
   `;
 }
