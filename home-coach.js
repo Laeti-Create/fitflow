@@ -42,40 +42,52 @@ function injectWalkIllustration() {
   const walker = qs(".walker");
   if (!walker) return;
 
-  walker.setAttribute("aria-label", "Illustration FitFlow : femme en marche dynamique");
+  walker.setAttribute("aria-label", "Illustration FitFlow : chemin de progression et mouvement");
   walker.innerHTML = `
-    <svg class="fitflow-walker-svg" viewBox="0 0 180 180" role="img" aria-hidden="true">
+    <svg class="fitflow-walker-svg fitflow-progress-svg" viewBox="0 0 220 180" role="img" aria-hidden="true">
       <defs>
-        <linearGradient id="walkSkin" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#F7B7A3" />
-          <stop offset="1" stop-color="#D98976" />
+        <linearGradient id="progressSky" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#FFF7F8" />
+          <stop offset="1" stop-color="#FFE8EE" />
         </linearGradient>
-        <linearGradient id="walkTop" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#EF6F91" />
-          <stop offset="1" stop-color="#F7A8B8" />
+        <linearGradient id="progressPath" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#F7A8B8" />
+          <stop offset="1" stop-color="#EF6F91" />
         </linearGradient>
-        <linearGradient id="walkLeg" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="progressAccent" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stop-color="#7E97A6" />
           <stop offset="1" stop-color="#1F2937" />
         </linearGradient>
+        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#5C4956" flood-opacity=".18" />
+        </filter>
       </defs>
-      <ellipse cx="90" cy="158" rx="56" ry="9" fill="rgba(31,41,55,.12)" />
-      <path d="M128 38c-7-19-33-22-46-6-12 14-8 35 6 41 16 7 38-7 40-35Z" fill="#3F3140" />
-      <circle cx="100" cy="45" r="18" fill="url(#walkSkin)" />
-      <path d="M83 41c8-20 35-18 42 0-14-9-26-6-42 0Z" fill="#3F3140" />
-      <path d="M88 68c9-7 26-7 35 2l-7 42H91L88 68Z" fill="url(#walkTop)" />
-      <path d="M91 74c-13 7-23 19-30 34" fill="none" stroke="url(#walkSkin)" stroke-width="10" stroke-linecap="round" />
-      <path d="M118 76c13 8 23 19 31 33" fill="none" stroke="url(#walkSkin)" stroke-width="10" stroke-linecap="round" />
-      <path d="M94 109c-6 14-16 25-32 37" fill="none" stroke="url(#walkLeg)" stroke-width="12" stroke-linecap="round" />
-      <path d="M111 109c7 12 17 22 32 31" fill="none" stroke="url(#walkLeg)" stroke-width="12" stroke-linecap="round" />
-      <path d="M63 146c-9 2-15 1-21-3" fill="none" stroke="#1F2937" stroke-width="7" stroke-linecap="round" />
-      <path d="M143 140c8 3 15 3 22 0" fill="none" stroke="#1F2937" stroke-width="7" stroke-linecap="round" />
-      <path d="M88 111h29" stroke="#D9577F" stroke-width="5" stroke-linecap="round" />
-      <path d="M55 113c-5 5-10 6-15 4" stroke="#EF6F91" stroke-width="5" stroke-linecap="round" fill="none" />
-      <path d="M149 111c6 2 11 1 15-3" stroke="#EF6F91" stroke-width="5" stroke-linecap="round" fill="none" />
-      <circle cx="139" cy="35" r="5" fill="#FFD6DE" />
-      <circle cx="49" cy="54" r="4" fill="#F7A8B8" />
-      <path d="M38 130c18-13 38-18 61-15 21 3 37 12 52 29" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="4" stroke-linecap="round" />
+
+      <circle cx="170" cy="34" r="24" fill="#FFF6CF" opacity=".95" />
+      <circle cx="170" cy="34" r="34" fill="#FFF6CF" opacity=".24" />
+      <path d="M20 132C58 102 91 95 122 106c28 10 45 31 78 21" fill="none" stroke="rgba(255,255,255,.62)" stroke-width="18" stroke-linecap="round" />
+      <path d="M20 132C58 102 91 95 122 106c28 10 45 31 78 21" fill="none" stroke="url(#progressPath)" stroke-width="8" stroke-linecap="round" stroke-dasharray="8 15" />
+
+      <g filter="url(#softShadow)">
+        <circle cx="43" cy="118" r="14" fill="#FFFFFF" />
+        <circle cx="43" cy="118" r="7" fill="#EF6F91" />
+        <circle cx="90" cy="101" r="14" fill="#FFFFFF" />
+        <path d="M84 101l4 5 9-11" fill="none" stroke="#7EBD93" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+        <circle cx="137" cy="112" r="14" fill="#FFFFFF" />
+        <path d="M131 112l4 5 9-11" fill="none" stroke="#7EBD93" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      </g>
+
+      <g class="progress-shoe" filter="url(#softShadow)">
+        <path d="M114 78c12 4 24 11 34 23 5 6 12 9 22 8l10-1c6 0 11 4 11 9 0 6-5 10-12 10h-55c-15 0-26-7-32-20l-5-12c-3-7 0-14 7-17 6-3 13-3 20 0Z" fill="#FFFFFF" />
+        <path d="M96 88c14 8 27 19 38 33" fill="none" stroke="url(#progressAccent)" stroke-width="8" stroke-linecap="round" />
+        <path d="M134 121h45" stroke="#1F2937" stroke-width="6" stroke-linecap="round" />
+        <path d="M121 92c12 5 23 13 33 25" fill="none" stroke="#EF6F91" stroke-width="5" stroke-linecap="round" />
+        <path d="M130 98l-11 8M140 106l-11 8M150 114l-10 7" stroke="#F7A8B8" stroke-width="4" stroke-linecap="round" />
+      </g>
+
+      <path d="M43 64h69" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity=".65" />
+      <path d="M34 78h43" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity=".48" />
+      <path d="M35 150h153" stroke="rgba(31,41,55,.12)" stroke-width="9" stroke-linecap="round" />
     </svg>
   `;
 }
