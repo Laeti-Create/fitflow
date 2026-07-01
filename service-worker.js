@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v13-safe-restore";
+const CACHE_NAME = "fitflow-cache-v14-safe-meal-templates";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/nutrition.js",
   "/fitflow/home-coach.js",
   "/fitflow/nutrition-enhancements.js",
+  "/fitflow/meal-templates.js",
   "/fitflow/firebase-config.js",
   "/fitflow/manifest.json",
   "/fitflow/icon.svg",
@@ -37,6 +38,13 @@ async function enhanceIndexResponse(response) {
     html = html.replace(
       "</body>",
       '  <script type="module" src="nutrition-enhancements.js"></script>\n</body>'
+    );
+  }
+
+  if (!html.includes("meal-templates.js")) {
+    html = html.replace(
+      "</body>",
+      '  <script type="module" src="meal-templates.js"></script>\n</body>'
     );
   }
 
