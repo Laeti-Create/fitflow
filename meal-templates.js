@@ -26,6 +26,8 @@ const MEAL_LABELS = {
 
 let currentUser = null;
 let mealTemplates = [];
+let selectedTemplateIndex = null;
+let cardCreated = false;
 
 const isConfigReady = () =>
   firebaseConfig?.apiKey &&
@@ -86,11 +88,16 @@ function showToast(message) {
   showToast.timeoutId = window.setTimeout(() => toast.classList.remove("active"), 2200);
 }
 
-async function loadTemplates() {
-  if (firebase && currentUser) {
-    const snap = await getDocs(query(collection(firebase.db, "users", currentUser.uid, "mealTemplates"), orderBy("name", "asc")));
-    mealTemplates = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  } else {
+async function safeLoadTemplates() {
+  try {
+    if (firebase && currentUser) {
+      const snap = await getDocs(query(collection(firebase.db, "users", currentUser.uid, "mealTemplates"), orderBy("name", "asc")));
+      mealTemplates = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } else {
+      mealTemplates = readLocal("mealTemplates");
+    }
+  } catch (error) {
+    console.warn("Repas types non chargés :", error);
     mealTemplates = readLocal("mealTemplates");
   }
   renderTemplates();
@@ -155,7 +162,7 @@ function getDisplayedFoodItems() {
     const carbs = Number((detail.match(/G ([0-9,.]+)/)?.[1] || "0").replace(",", "."));
     const fat = Number((detail.match(/L ([0-9,.]+)/)?.[1] || "0").replace(",", "."));
     const fiber = Number((detail.match(/F ([0-9,.]+)/)?.[1] || "0").replace(",", "."));
-    return { name:title, detail, calories, protein, carbs, fat, fiber };
+    return { name:title, calories, protein, carbs, fat, fiber };
   }).filter((item) => item.calories || item.protein || item.carbs || item.fat || item.fiber);
 }
 
@@ -170,15 +177,19 @@ function templateTotals(items) {
 }
 
 function ensureTemplateCard() {
-  let card = qs("#meal-templates-card");
-  if (card) return card;
+  if (cardCreated && qs("#meal-templates-card")) return qs("#meal-templates-card");
 
   const favoritesCard = qs("#nutrition-favorites-card");
   const quickCard = qs("#estimated-meal-card");
   const insertAfter = favoritesCard || quickCard || qs("#nutrition-macros")?.closest(".nutrition-card");
   if (!insertAfter?.parentNode) return null;
 
-  card = document.createElement("article");
+  if (qs("#meal-templates-card")) {
+    cardCreated = true;
+    return qs("#meal-templates-card");
+  }
+
+  const card = document.createElement("article");
   card.id = "meal-templates-card";
   card.className = "nutrition-card";
   card.innerHTML = `
@@ -194,6 +205,7 @@ function ensureTemplateCard() {
 
   insertAfter.parentNode.insertBefore(card, insertAfter.nextSibling);
   card.querySelector("#create-template-from-day")?.addEventListener("click", openTemplateBuilder);
+  cardCreated = true;
   return card;
 }
 
@@ -232,7 +244,7 @@ function renderTemplate(template, index) {
   `;
 }
 
-function ensureTemplateModal() {
+function ensureTemplateBuilderModal() {
   let overlay = qs("#meal-template-modal");
   if (overlay) return overlay;
 
@@ -260,9 +272,9 @@ function ensureTemplateModal() {
   `;
 
   document.body.appendChild(overlay);
-  overlay.querySelector(".nutrition-modal-close")?.addEventListener("click", closeTemplateBuilder);
+  overlay.querySelector(".nutrition-modal-close")?.addEventListener("click", () => overlay.classList.remove("active"));
   overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) closeTemplateBuilder();
+    if (event.target === overlay) overlay.classList.remove("active");
   });
   overlay.querySelector("#meal-template-form")?.addEventListener("submit", submitTemplateBuilder);
   overlay.querySelector("#template-builder-list")?.addEventListener("change", updateBuilderSummary);
@@ -270,16 +282,14 @@ function ensureTemplateModal() {
 }
 
 function openTemplateBuilder() {
-  const overlay = ensureTemplateModal();
+  const overlay = ensureTemplateBuilderModal();
   const items = getDisplayedFoodItems();
   const list = qs("#template-builder-list");
   const form = qs("#meal-template-form");
 
   if (form) form.reset();
-  if (!items.length) {
-    list.innerHTML = `<p class="empty-template">Aucun aliment affiché sur cette journée. Ajoute d’abord les aliments du repas.</p>`;
-  } else {
-    list.innerHTML = items.map((item, index) => `
+  list.innerHTML = items.length
+    ? items.map((item, index) => `
       <label class="template-builder-item">
         <input type="checkbox" name="item" value="${index}" checked />
         <span>
@@ -287,8 +297,8 @@ function openTemplateBuilder() {
           <small>${fmtInt(item.calories)} kcal · P ${fmt(item.protein)} · G ${fmt(item.carbs)} · L ${fmt(item.fat)} · F ${fmt(item.fiber)}</small>
         </span>
       </label>
-    `).join("");
-  }
+    `).join("")
+    : `<p class="empty-template">Aucun aliment affiché sur cette journée. Ajoute d’abord les aliments du repas.</p>`;
 
   overlay.dataset.items = JSON.stringify(items);
   overlay.classList.add("active");
@@ -298,10 +308,9 @@ function openTemplateBuilder() {
 function selectedBuilderItems() {
   const overlay = qs("#meal-template-modal");
   const items = JSON.parse(overlay?.dataset.items || "[]");
-  const selected = [...document.querySelectorAll("#template-builder-list input[name='item']:checked")]
+  return [...document.querySelectorAll("#template-builder-list input[name='item']:checked")]
     .map((input) => items[Number(input.value)])
     .filter(Boolean);
-  return selected;
 }
 
 function updateBuilderSummary() {
@@ -324,7 +333,7 @@ async function submitTemplateBuilder(event) {
   }
 
   const button = form.querySelector("button[type='submit']");
-  const original = button?.textContent;
+  const original = button?.textContent || "Enregistrer le repas type";
   if (button) {
     button.disabled = true;
     button.textContent = "Enregistrement…";
@@ -332,100 +341,158 @@ async function submitTemplateBuilder(event) {
 
   try {
     const name = new FormData(form).get("name")?.toString().trim() || "Repas type";
-    const template = {
-      name,
-      items,
-      totals: templateTotals(items)
-    };
-    await saveTemplate(template);
-    closeTemplateBuilder();
+    await saveTemplate({ name, items, totals: templateTotals(items) });
+    qs("#meal-template-modal")?.classList.remove("active");
     showToast("Repas type enregistré ✅");
+  } catch (error) {
+    console.warn("Repas type non enregistré :", error);
+    showToast("Erreur pendant l’enregistrement");
   } finally {
     if (button) {
       button.disabled = false;
-      button.textContent = original || "Enregistrer le repas type";
+      button.textContent = original;
     }
   }
 }
 
-function closeTemplateBuilder() {
-  qs("#meal-template-modal")?.classList.remove("active");
+function ensureAddTemplateModal() {
+  let overlay = qs("#add-template-modal");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "add-template-modal";
+  overlay.className = "nutrition-modal-overlay";
+  overlay.innerHTML = `
+    <section class="nutrition-modal" role="dialog" aria-modal="true">
+      <div class="nutrition-modal-head">
+        <div>
+          <h3 id="add-template-title">Ajouter un repas type</h3>
+          <p>Choisis dans quel repas l’ajouter aujourd’hui.</p>
+        </div>
+        <button class="nutrition-modal-close" type="button" aria-label="Fermer">×</button>
+      </div>
+      <form id="add-template-form" class="form-card">
+        <label>Repas
+          <select name="meal" required>
+            <option value="breakfast">Petit-déjeuner</option>
+            <option value="lunch">Déjeuner</option>
+            <option value="dinner">Dîner</option>
+            <option value="snack">Collation</option>
+          </select>
+        </label>
+        <button class="btn btn-primary wide" type="submit">Ajouter au jour</button>
+      </form>
+    </section>
+  `;
+
+  document.body.appendChild(overlay);
+  overlay.querySelector(".nutrition-modal-close")?.addEventListener("click", () => overlay.classList.remove("active"));
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) overlay.classList.remove("active");
+  });
+  overlay.querySelector("#add-template-form")?.addEventListener("submit", submitAddTemplateToDay);
+  return overlay;
 }
 
-async function addTemplateToDay(index) {
+function openAddTemplateModal(index) {
+  selectedTemplateIndex = index;
   const template = mealTemplates[index];
-  if (!template) return;
+  const overlay = ensureAddTemplateModal();
+  qs("#add-template-title").textContent = `Ajouter ${template?.name || "ce repas type"}`;
+  overlay.classList.add("active");
+}
 
-  const meal = prompt("Dans quel repas ajouter ce repas type ? breakfast, lunch, dinner ou snack", "breakfast");
-  if (meal === null) return;
+async function submitAddTemplateToDay(event) {
+  event.preventDefault();
+  const template = mealTemplates[selectedTemplateIndex];
+  if (!template) return;
+  const form = event.currentTarget;
+  const meal = new FormData(form).get("meal")?.toString() || "breakfast";
   const normalizedMeal = MEALS.includes(meal) ? meal : "breakfast";
   const date = qs("#nutrition-date")?.value || todayISO();
+  const button = form.querySelector("button[type='submit']");
+  const original = button?.textContent || "Ajouter au jour";
 
-  for (const item of template.items || []) {
-    await addNutritionEntry({
-      date,
-      meal: normalizedMeal,
-      name: item.name,
-      referenceType: "templateItem",
-      quantity: 1,
-      unit: "portion",
-      servingName: "portion",
-      servingWeight: null,
-      baseCalories: item.calories,
-      baseProtein: item.protein,
-      baseCarbs: item.carbs,
-      baseFat: item.fat,
-      baseFiber: item.fiber,
-      calories: item.calories,
-      protein: item.protein,
-      carbs: item.carbs,
-      fat: item.fat,
-      fiber: item.fiber,
-      favorite: false,
-      source: "mealTemplate",
-      templateName: template.name
-    });
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Ajout…";
   }
 
-  showToast("Repas type ajouté ✅");
-  refreshNutrition();
+  try {
+    for (const item of template.items || []) {
+      await addNutritionEntry({
+        date,
+        meal: normalizedMeal,
+        name: item.name,
+        referenceType: "templateItem",
+        quantity: 1,
+        unit: "portion",
+        servingName: "portion",
+        servingWeight: null,
+        baseCalories: item.calories,
+        baseProtein: item.protein,
+        baseCarbs: item.carbs,
+        baseFat: item.fat,
+        baseFiber: item.fiber,
+        calories: item.calories,
+        protein: item.protein,
+        carbs: item.carbs,
+        fat: item.fat,
+        fiber: item.fiber,
+        favorite: false,
+        source: "mealTemplate",
+        templateName: template.name
+      });
+    }
+    qs("#add-template-modal")?.classList.remove("active");
+    showToast("Repas type ajouté ✅");
+    refreshNutrition();
+  } catch (error) {
+    console.warn("Repas type non ajouté :", error);
+    showToast("Erreur pendant l’ajout");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = original;
+    }
+  }
 }
 
 function bindTemplateEvents() {
-  ensureTemplateCard();
-  renderTemplates();
-
   document.addEventListener("click", async (event) => {
+    const createButton = event.target.closest("#create-template-from-day");
     const addButton = event.target.closest(".add-template-to-day");
     const deleteButton = event.target.closest(".delete-template");
 
-    if (addButton) await addTemplateToDay(Number(addButton.dataset.index));
+    if (createButton) openTemplateBuilder();
+    if (addButton) openAddTemplateModal(Number(addButton.dataset.index));
     if (deleteButton) await deleteTemplate(Number(deleteButton.dataset.index));
   });
+}
 
-  const observer = new MutationObserver(() => {
+function initMealTemplates() {
+  try {
     ensureTemplateCard();
-    renderTemplates();
-  });
-  const nutritionView = qs("#view-nutrition");
-  if (nutritionView) observer.observe(nutritionView, { childList:true, subtree:true });
+    bindTemplateEvents();
+    safeLoadTemplates();
+    setTimeout(() => { ensureTemplateCard(); renderTemplates(); }, 800);
+    window.addEventListener("focus", () => setTimeout(() => { ensureTemplateCard(); renderTemplates(); }, 250));
+  } catch (error) {
+    console.warn("Module repas types désactivé sans bloquer FitFlow :", error);
+  }
 }
 
 if (firebase) {
   onAuthStateChanged(firebase.auth, async (user) => {
     currentUser = user;
-    if (user) await loadTemplates();
+    await safeLoadTemplates();
   });
 } else {
   currentUser = { uid:"demo" };
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", async () => {
-    bindTemplateEvents();
-    await loadTemplates();
-  });
+  document.addEventListener("DOMContentLoaded", initMealTemplates);
 } else {
-  bindTemplateEvents();
-  await loadTemplates();
+  initMealTemplates();
 }
