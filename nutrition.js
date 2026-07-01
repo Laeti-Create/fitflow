@@ -59,6 +59,12 @@ const DEFAULT_PROFILE = {
   deficitHighThreshold: 850
 };
 
+const DAILY_ACTIVITY_LEVELS = {
+  calm: { label:"Calme", rate:0.10 },
+  normal: { label:"Normale", rate:0.15 },
+  active: { label:"Active", rate:0.20 }
+};
+
 const MEALS = ["breakfast", "lunch", "dinner", "snack"];
 const MEAL_LABELS = {
   breakfast: "Petit-déjeuner",
@@ -94,6 +100,16 @@ firebase = setupFirebase();
 function storageKey(name) {
   const uid = state.user?.uid || "demo";
   return `fitflow:${uid}:${name}`;
+}
+
+function dailyActivityLevelKey() {
+  const date = qs("#nutrition-date")?.value || todayISO();
+  return storageKey(`dailyActivityLevel:${date}`);
+}
+
+function currentDailyActivityLevel() {
+  const key = localStorage.getItem(dailyActivityLevelKey()) || "normal";
+  return DAILY_ACTIVITY_LEVELS[key] ? { key, ...DAILY_ACTIVITY_LEVELS[key] } : { key:"normal", ...DAILY_ACTIVITY_LEVELS.normal };
 }
 
 function loadLocal() {
@@ -511,7 +527,10 @@ function renderNutrition() {
   const targets = nutritionTargets();
   const bmr = bmrEstimate();
   const activity = todayActivityCalories();
-  const totalBurned = bmr + activity.total;
+  const dailyLevel = currentDailyActivityLevel();
+  const dailyLife = Math.round(bmr * dailyLevel.rate);
+  const totalActivity = dailyLife + activity.total;
+  const totalBurned = bmr + totalActivity;
   const deficit = totalBurned - totals.calories;
   const caloriesLeft = targets.calorieTarget - totals.calories;
 
@@ -525,8 +544,10 @@ function renderNutrition() {
   deficitEl.textContent = `${deficit >= 0 ? "-" : "+"}${fmtInt(Math.abs(deficit))} kcal`;
   deficitEl.className = `deficit-value ${deficitState}`;
   qs("#nutrition-bmr").textContent = `${fmtInt(bmr)} kcal`;
-  qs("#nutrition-activity").textContent = `${fmtInt(activity.total)} kcal`;
+  qs("#nutrition-activity").textContent = `${fmtInt(totalActivity)} kcal`;
   qs("#nutrition-burned").textContent = `${fmtInt(totalBurned)} kcal`;
+  const activityEl = qs("#nutrition-activity")?.closest(".nutrition-mini");
+  activityEl?.querySelector("small") && (activityEl.querySelector("small").textContent = `${dailyLevel.label} + activités FitFlow`);
 
   const macroContainer = qs("#nutrition-macros");
   macroContainer.innerHTML = "";
@@ -727,6 +748,11 @@ function bindNutritionEvents() {
     dateInput.addEventListener("change", renderNutrition);
   }
 
+  window.addEventListener("storage", (event) => {
+    if (event.key?.includes("dailyActivityLevel")) renderNutrition();
+  });
+  window.addEventListener("focus", renderNutrition);
+
   qsa("[data-open-nutrition-form]").forEach((button) => {
     button.addEventListener("click", () => {
       prefillNutritionForm(button.dataset.meal || "breakfast");
@@ -758,69 +784,54 @@ function bindNutritionEvents() {
     form.elements.referenceType.addEventListener("change", toggleReferenceFields);
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const raw = Object.fromEntries(new FormData(form).entries());
-      raw.favorite = form.elements.favorite?.checked || false;
-      const entry = buildFoodPayload(raw);
-      await addNutritionEntry(entry);
+      const payload = buildFoodPayload(Object.fromEntries(new FormData(form).entries()));
+      await addNutritionEntry(payload);
       form.reset();
       form.elements.date.value = qs("#nutrition-date")?.value || todayISO();
-      form.elements.referenceType.value = "per100";
+      form.elements.meal.value = payload.meal;
       toggleReferenceFields();
-      qs("[data-nav='nutrition']")?.click();
       renderNutrition();
+      qs("[data-nav='nutrition']")?.click();
     });
-    toggleReferenceFields();
   }
 
   const settingsForm = qs("#nutrition-settings-form");
   if (settingsForm) {
     settingsForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const raw = Object.fromEntries(new FormData(settingsForm).entries());
+      const data = Object.fromEntries(new FormData(settingsForm).entries());
       await saveNutritionSettings({
-        age: Number(raw.age || DEFAULT_PROFILE.age),
-        calorieTarget: Number(raw.calorieTarget || DEFAULT_PROFILE.calorieTarget),
-        proteinPerKg: Number(raw.proteinPerKg || DEFAULT_PROFILE.proteinPerKg),
-        fatMin: Number(raw.fatMin || DEFAULT_PROFILE.fatMin),
-        fiberTarget: Number(raw.fiberTarget || DEFAULT_PROFILE.fiberTarget),
-        waterTarget: Number(raw.waterTarget || DEFAULT_PROFILE.waterTarget),
-        deficitTarget: Number(raw.deficitTarget || DEFAULT_PROFILE.deficitTarget),
-        deficitHighThreshold: Number(raw.deficitHighThreshold || DEFAULT_PROFILE.deficitHighThreshold)
+        age: Number(data.age || DEFAULT_PROFILE.age),
+        calorieTarget: Number(data.calorieTarget || DEFAULT_PROFILE.calorieTarget),
+        proteinPerKg: Number(data.proteinPerKg || DEFAULT_PROFILE.proteinPerKg),
+        fatMin: Number(data.fatMin || DEFAULT_PROFILE.fatMin),
+        fiberTarget: Number(data.fiberTarget || DEFAULT_PROFILE.fiberTarget),
+        waterTarget: Number(data.waterTarget || DEFAULT_PROFILE.waterTarget),
+        deficitTarget: Number(data.deficitTarget || DEFAULT_PROFILE.deficitTarget),
+        deficitHighThreshold: Number(data.deficitHighThreshold || DEFAULT_PROFILE.deficitHighThreshold)
       });
-      alert("Objectifs nutrition enregistrés ✅");
+      alert("Paramètres nutrition mis à jour ✅");
     });
   }
 }
 
-async function refreshNutritionData() {
-  await loadRemote();
-  fillNutritionSettingsForm(true);
-  renderNutrition();
+async function initNutrition() {
+  try {
+    await loadRemote();
+    bindNutritionEvents();
+    fillNutritionSettingsForm();
+    renderNutrition();
+  } catch (error) {
+    console.warn("Nutrition non chargée :", error);
+  }
 }
 
-function initNutrition() {
-  bindNutritionEvents();
-
-  if (!firebase) {
-    state.mode = "demo";
-    state.user = { uid:"demo" };
-    loadLocal();
-    fillNutritionSettingsForm(true);
-    renderNutrition();
-    return;
-  }
-
+if (firebase) {
   onAuthStateChanged(firebase.auth, async (user) => {
     state.user = user;
     state.mode = user ? "firebase" : "demo";
-    if (user) {
-      await refreshNutritionData();
-    }
+    await initNutrition();
   });
-
-  window.addEventListener("focus", () => {
-    if (state.user) refreshNutritionData();
-  });
+} else {
+  initNutrition();
 }
-
-initNutrition();
