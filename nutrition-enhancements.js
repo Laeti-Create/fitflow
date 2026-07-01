@@ -55,6 +55,70 @@ function readFavoriteFromDom(button) {
   };
 }
 
+function ensureToast() {
+  let toast = qs("#nutrition-save-toast");
+  if (toast) return toast;
+
+  toast = document.createElement("div");
+  toast.id = "nutrition-save-toast";
+  toast.className = "nutrition-toast";
+  toast.setAttribute("role", "status");
+  document.body.appendChild(toast);
+  return toast;
+}
+
+function showToast(message = "Aliment enregistré ✅") {
+  const toast = ensureToast();
+  toast.textContent = message;
+  toast.classList.add("active");
+  window.clearTimeout(showToast.timeoutId);
+  showToast.timeoutId = window.setTimeout(() => {
+    toast.classList.remove("active");
+  }, 2200);
+}
+
+function lockSubmitButton(form, savingText) {
+  const button = form.querySelector("button[type='submit']");
+  if (!button) return () => {};
+
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.dataset.originalText = originalText;
+  button.textContent = savingText;
+
+  return () => {
+    button.disabled = false;
+    button.textContent = button.dataset.originalText || originalText;
+    delete button.dataset.originalText;
+  };
+}
+
+function bindFoodFormGuard() {
+  const form = qs("#nutrition-form");
+  if (!form || form.dataset.guardBound) return;
+
+  form.dataset.guardBound = "true";
+  form.addEventListener("submit", (event) => {
+    if (form.dataset.saving === "true") {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    form.dataset.saving = "true";
+    const unlock = lockSubmitButton(form, "Enregistrement…");
+
+    window.setTimeout(() => {
+      unlock();
+      delete form.dataset.saving;
+      showToast("Aliment enregistré ✅");
+      qs("[data-nav='nutrition']")?.click();
+      refreshNutritionScreen();
+    }, 900);
+  }, true);
+}
+
 function ensureModal() {
   let overlay = qs("#nutrition-enhancement-modal");
   if (overlay) return overlay;
@@ -138,58 +202,74 @@ function bindModalEvents(overlay) {
     event.preventDefault();
     if (!selectedFavorite) return;
 
-    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const meal = MEALS.includes(data.meal) ? data.meal : "breakfast";
-    const quantity = Number(data.quantity || 1);
+    const form = event.currentTarget;
+    const unlock = lockSubmitButton(form, "Ajout…");
 
-    const addButton = document.querySelector(`.add-favorite-to-day[data-index="${selectedFavorite.index}"]`);
-    const favorite = readFavoriteFromCard(addButton);
-    if (!favorite) return;
+    try {
+      const data = Object.fromEntries(new FormData(form).entries());
+      const meal = MEALS.includes(data.meal) ? data.meal : "breakfast";
+      const quantity = Number(data.quantity || 1);
 
-    await addNutritionEntry({
-      ...favorite,
-      date: qs("#nutrition-date")?.value || todayISO(),
-      meal,
-      quantity,
-      favorite: false,
-      source: "favorite"
-    });
+      const addButton = document.querySelector(`.add-favorite-to-day[data-index="${selectedFavorite.index}"]`);
+      const favorite = readFavoriteFromCard(addButton);
+      if (!favorite) return;
 
-    closeModal();
-    refreshNutritionScreen();
+      await addNutritionEntry({
+        ...favorite,
+        date: qs("#nutrition-date")?.value || todayISO(),
+        meal,
+        quantity,
+        favorite: false,
+        source: "favorite"
+      });
+
+      closeModal();
+      showToast("Favori ajouté au repas ✅");
+      refreshNutritionScreen();
+    } finally {
+      unlock();
+    }
   });
 
   overlay.querySelector("#estimated-meal-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const form = event.currentTarget;
+    const unlock = lockSubmitButton(form, "Enregistrement…");
 
-    const entry = {
-      date: data.date || qs("#nutrition-date")?.value || todayISO(),
-      meal: MEALS.includes(data.meal) ? data.meal : "lunch",
-      name: data.name?.trim() || "Repas global estimé",
-      referenceType: "estimatedMeal",
-      quantity: 1,
-      unit: "repas",
-      servingName: "repas",
-      servingWeight: null,
-      baseCalories: Number(data.calories || 0),
-      baseProtein: Number(data.protein || 0),
-      baseCarbs: Number(data.carbs || 0),
-      baseFat: Number(data.fat || 0),
-      baseFiber: Number(data.fiber || 0),
-      calories: Math.round(Number(data.calories || 0)),
-      protein: Number(Number(data.protein || 0).toFixed(1)),
-      carbs: Number(Number(data.carbs || 0).toFixed(1)),
-      fat: Number(Number(data.fat || 0).toFixed(1)),
-      fiber: Number(Number(data.fiber || 0).toFixed(1)),
-      favorite: false,
-      source: "estimatedMeal"
-    };
+    try {
+      const data = Object.fromEntries(new FormData(form).entries());
 
-    await addNutritionEntry(entry);
-    event.currentTarget.reset();
-    closeModal();
-    refreshNutritionScreen();
+      const entry = {
+        date: data.date || qs("#nutrition-date")?.value || todayISO(),
+        meal: MEALS.includes(data.meal) ? data.meal : "lunch",
+        name: data.name?.trim() || "Repas global estimé",
+        referenceType: "estimatedMeal",
+        quantity: 1,
+        unit: "repas",
+        servingName: "repas",
+        servingWeight: null,
+        baseCalories: Number(data.calories || 0),
+        baseProtein: Number(data.protein || 0),
+        baseCarbs: Number(data.carbs || 0),
+        baseFat: Number(data.fat || 0),
+        baseFiber: Number(data.fiber || 0),
+        calories: Math.round(Number(data.calories || 0)),
+        protein: Number(Number(data.protein || 0).toFixed(1)),
+        carbs: Number(Number(data.carbs || 0).toFixed(1)),
+        fat: Number(Number(data.fat || 0).toFixed(1)),
+        fiber: Number(Number(data.fiber || 0).toFixed(1)),
+        favorite: false,
+        source: "estimatedMeal"
+      };
+
+      await addNutritionEntry(entry);
+      form.reset();
+      closeModal();
+      showToast("Repas global enregistré ✅");
+      refreshNutritionScreen();
+    } finally {
+      unlock();
+    }
   });
 }
 
@@ -301,7 +381,9 @@ function ensureQuickActionCard() {
 
 function bindEnhancements() {
   ensureModal();
+  ensureToast();
   ensureQuickActionCard();
+  bindFoodFormGuard();
 
   document.addEventListener("click", (event) => {
     const favoriteButton = event.target.closest(".add-favorite-to-day");
@@ -313,7 +395,10 @@ function bindEnhancements() {
     openFavoriteModal(favoriteButton);
   }, true);
 
-  const observer = new MutationObserver(() => ensureQuickActionCard());
+  const observer = new MutationObserver(() => {
+    ensureQuickActionCard();
+    bindFoodFormGuard();
+  });
   const nutritionView = qs("#view-nutrition");
   if (nutritionView) observer.observe(nutritionView, { childList:true, subtree:true });
 }
