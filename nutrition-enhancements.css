@@ -1,0 +1,128 @@
+/* Nutrition enhancements : ajout rapide favoris + repas global estimé */
+.nutrition-modal-overlay{
+  position:fixed;
+  inset:0;
+  z-index:80;
+  display:none;
+  place-items:end center;
+  background:rgba(31,41,55,.28);
+  backdrop-filter:blur(8px);
+  padding:18px;
+}
+
+.nutrition-modal-overlay.active{
+  display:grid;
+}
+
+.nutrition-modal{
+  width:min(100%, 430px);
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,247,248,.98));
+  border:1px solid rgba(241,221,228,.9);
+  border-radius:28px;
+  box-shadow:0 24px 70px rgba(92,73,86,.22);
+  padding:18px;
+  max-height:min(86dvh, 720px);
+  overflow:auto;
+}
+
+.nutrition-modal-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+
+.nutrition-modal-head h3{
+  margin:0;
+}
+
+.nutrition-modal-head p{
+  margin:5px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.4;
+}
+
+.nutrition-modal-close{
+  border:0;
+  background:var(--rose-soft);
+  color:var(--rose-strong);
+  border-radius:14px;
+  width:38px;
+  height:38px;
+  font-weight:800;
+}
+
+.nutrition-quick-actions{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+  margin:0 0 14px;
+}
+
+.nutrition-quick-card{
+  border:1px solid rgba(241,221,228,.82);
+  background:linear-gradient(135deg,rgba(255,243,246,.94),rgba(255,255,255,.82));
+  border-radius:20px;
+  padding:14px;
+  display:grid;
+  grid-template-columns:42px 1fr auto;
+  align-items:center;
+  gap:12px;
+  text-align:left;
+  box-shadow:0 8px 20px rgba(92,73,86,.045);
+}
+
+.nutrition-quick-card span:first-child{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border-radius:15px;
+  background:rgba(255,255,255,.75);
+  font-size:22px;
+}
+
+.nutrition-quick-card strong{
+  display:block;
+  color:var(--navy);
+}
+
+.nutrition-quick-card small{
+  display:block;
+  color:var(--muted);
+  margin-top:3px;
+  line-height:1.35;
+}
+
+.nutrition-quick-card b{
+  color:var(--rose);
+  font-size:22px;
+}
+
+.estimated-note{
+  margin:0;
+  padding:12px;
+  border-radius:16px;
+  background:var(--rose-pale);
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.45;
+}
+
+@media (max-width:460px){
+  .nutrition-modal-overlay{
+    padding:10px;
+  }
+
+  .nutrition-modal{
+    border-radius:26px 26px 18px 18px;
+    max-height:88dvh;
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .nutrition-quick-card{
+    grid-template-columns:40px 1fr auto;
+  }
+}
