@@ -164,7 +164,8 @@
   line-height:1.45;
 }
 
-.nutrition-meals{
+.nutrition-meals,
+.favorite-list{
   display:grid;
   gap:12px;
 }
@@ -176,7 +177,8 @@
   padding:14px;
 }
 
-.meal-head{
+.meal-head,
+.favorite-head{
   display:flex;
   justify-content:space-between;
   gap:10px;
@@ -184,11 +186,13 @@
   margin-bottom:10px;
 }
 
-.meal-head strong{
+.meal-head strong,
+.favorite-head strong{
   color:var(--navy);
 }
 
-.meal-head small{
+.meal-head small,
+.favorite-head small{
   color:var(--muted);
   display:block;
   margin-top:4px;
@@ -200,7 +204,8 @@
   gap:8px;
 }
 
-.nutrition-food-item{
+.nutrition-food-item,
+.favorite-item{
   display:grid;
   grid-template-columns:1fr auto;
   gap:10px;
@@ -210,12 +215,20 @@
   background:var(--rose-pale);
 }
 
-.nutrition-food-item strong{
+.favorite-item{
+  background:linear-gradient(135deg,rgba(255,243,246,.94),rgba(255,255,255,.82));
+  border:1px solid rgba(241,221,228,.72);
+}
+
+.nutrition-food-item strong,
+.favorite-item strong{
   color:var(--navy);
 }
 
 .nutrition-food-item small,
-.empty-meal{
+.favorite-item small,
+.empty-meal,
+.empty-favorite{
   color:var(--muted);
   display:block;
   margin-top:4px;
@@ -223,9 +236,17 @@
   line-height:1.35;
 }
 
-.empty-meal{
+.empty-meal,
+.empty-favorite{
   margin:0;
   padding:8px 0;
+}
+
+.favorite-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
 }
 
 .form-help{
@@ -267,11 +288,14 @@
     grid-template-columns:1fr;
   }
 
-  .nutrition-food-item{
+  .nutrition-food-item,
+  .favorite-item{
     grid-template-columns:1fr;
   }
 
-  .nutrition-food-item .card-actions{
+  .nutrition-food-item .card-actions,
+  .favorite-actions{
     margin-top:0;
+    justify-content:flex-start;
   }
 }
