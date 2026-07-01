@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v22-activity-level-force";
+const CACHE_NAME = "fitflow-cache-v23-food-search";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -18,6 +18,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/nutrition-layout.js",
   "/fitflow/edit-meal-templates.js",
   "/fitflow/dashboard-day-summary.js",
+  "/fitflow/food-search.js",
   "/fitflow/firebase-config.js",
   "/fitflow/manifest.json",
   "/fitflow/icon.svg",
@@ -40,7 +41,8 @@ async function enhanceIndexResponse(response) {
     "water-tracker.js",
     "weekly-trends.js",
     "nutrition-layout.js",
-    "edit-meal-templates.js"
+    "edit-meal-templates.js",
+    "food-search.js"
   ];
 
   if (!html.includes("nutrition-enhancements.css")) {
