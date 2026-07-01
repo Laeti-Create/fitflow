@@ -7,6 +7,12 @@ const qs = (s) => document.querySelector(s);
 const todayISO = () => new Date().toISOString().slice(0, 10);
 let user = null;
 
+const ACTIVITY_LEVELS = {
+  calm:{ label:"Calme", rate:0.10 },
+  normal:{ label:"Normale", rate:0.15 },
+  active:{ label:"Active", rate:0.20 }
+};
+
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v) => String(v).includes("REMPLACE_MOI"));
 const fb = (() => {
   if(!ready()) return null;
@@ -18,6 +24,9 @@ function key(name){ return `fitflow:${user?.uid || "demo"}:${name}`; }
 function n(v){ return Number(v || 0); }
 function fmt(v){ return Math.round(n(v)).toLocaleString("fr-FR"); }
 function local(name){ return JSON.parse(localStorage.getItem(key(name)) || "[]"); }
+function activityKey(){ return key(`dailyActivityLevel:${todayISO()}`); }
+function getLevel(){ return localStorage.getItem(activityKey()) || "normal"; }
+function setLevel(level){ localStorage.setItem(activityKey(), ACTIVITY_LEVELS[level] ? level : "normal"); }
 
 function bmr(profile, weight){
   const h = n(profile.height || 1.63) * 100;
@@ -38,7 +47,7 @@ async function loadData(){
     ]);
     const profile = profileSnap.exists() ? profileSnap.data() : {};
     const weights = weightsSnap.docs.map((d) => d.data());
-    const walks = walksSnap.docs.map((d) => d.data()).filter((e) => e.date === today);
+    const walks = weightsSnap.docs.length ? walksSnap.docs.map((d) => d.data()).filter((e) => e.date === today) : walksSnap.docs.map((d) => d.data()).filter((e) => e.date === today);
     const strength = strengthSnap.docs.map((d) => d.data()).filter((e) => e.date === today);
     const nutrition = nutritionSnap.docs.map((d) => d.data()).filter((e) => e.date === today);
     return { profile, weights, walks, strength, nutrition };
@@ -54,18 +63,26 @@ function ensureCard(){
   card = document.createElement("article");
   card.id = "dashboard-day-summary";
   card.className = "dashboard-day-card";
-  card.innerHTML = `<div class="day-summary-head"><div><h3>Aujourd’hui</h3><small>Estimation du déficit actuel</small></div><span>🔥</span></div><div class="day-summary-grid"><div><strong id="dash-day-eaten">0</strong><span>kcal ingérées</span></div><div><strong id="dash-day-burned">0</strong><span>kcal brûlées</span></div><div><strong id="dash-day-deficit">0</strong><span>déficit actuel</span></div></div><p id="dash-day-note" class="day-summary-note">Calcul basé sur métabolisme + activité quotidienne légère + séances enregistrées.</p>`;
+  card.innerHTML = `<div class="day-summary-head"><div><h3>Aujourd’hui</h3><small>Estimation du déficit actuel</small></div><span>🔥</span></div><div class="day-level-selector" role="group" aria-label="Niveau d'activité du jour"><button type="button" data-day-level="calm">Calme</button><button type="button" data-day-level="normal">Normale</button><button type="button" data-day-level="active">Active</button></div><div class="day-summary-grid"><div><strong id="dash-day-eaten">0</strong><span>kcal ingérées</span></div><div><strong id="dash-day-burned">0</strong><span>kcal brûlées</span></div><div><strong id="dash-day-deficit">0</strong><span>déficit actuel</span></div></div><p id="dash-day-note" class="day-summary-note">Calcul basé sur métabolisme + activité quotidienne + séances enregistrées.</p>`;
   motivation.insertAdjacentElement("afterend", card);
+  card.querySelectorAll("[data-day-level]").forEach((btn) => btn.addEventListener("click", () => { setLevel(btn.dataset.dayLevel); render(); }));
   return card;
+}
+
+function updateButtons(level){
+  document.querySelectorAll("[data-day-level]").forEach((btn) => btn.classList.toggle("active", btn.dataset.dayLevel === level));
 }
 
 async function render(){
   if(!ensureCard()) return;
   try{
     const data = await loadData();
+    const levelKey = getLevel();
+    const level = ACTIVITY_LEVELS[levelKey] || ACTIVITY_LEVELS.normal;
+    updateButtons(levelKey);
     const currentWeight = n(data.weights?.[0]?.weight || data.profile.startWeight || 79.5);
     const basal = bmr(data.profile || {}, currentWeight);
-    const dailyLife = Math.round(basal * 0.20);
+    const dailyLife = Math.round(basal * level.rate);
     const eaten = data.nutrition.reduce((s,e) => s + n(e.calories), 0);
     const active = data.walks.reduce((s,e) => s + n(e.calories), 0) + data.strength.reduce((s,e) => s + n(e.calories || (e.duration ? e.duration * 4 : 0)), 0);
     const burned = basal + dailyLife + active;
@@ -73,7 +90,7 @@ async function render(){
     qs("#dash-day-eaten").textContent = fmt(eaten);
     qs("#dash-day-burned").textContent = fmt(burned);
     qs("#dash-day-deficit").textContent = `${deficit >= 0 ? "-" : "+"}${fmt(Math.abs(deficit))}`;
-    qs("#dash-day-note").textContent = active > 0 ? `Dont ${fmt(active)} kcal de séances enregistrées.` : `Inclut environ ${fmt(dailyLife)} kcal de mouvements du quotidien.`;
+    qs("#dash-day-note").textContent = active > 0 ? `${level.label} (+${Math.round(level.rate*100)} %) + ${fmt(active)} kcal de séances enregistrées.` : `${level.label} : environ ${fmt(dailyLife)} kcal de mouvements du quotidien.`;
   }catch(e){ console.warn("Résumé journée non chargé", e); }
 }
 
