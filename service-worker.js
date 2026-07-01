@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v15-edit-food";
+const CACHE_NAME = "fitflow-cache-v16-water";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -13,6 +13,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/nutrition-enhancements.js",
   "/fitflow/meal-templates.js",
   "/fitflow/edit-food.js",
+  "/fitflow/water-tracker.js",
   "/fitflow/firebase-config.js",
   "/fitflow/manifest.json",
   "/fitflow/icon.svg",
@@ -28,39 +29,24 @@ function shouldEnhanceIndex(request) {
 async function enhanceIndexResponse(response) {
   let html = await response.text();
 
+  const scripts = [
+    "nutrition-enhancements.js",
+    "meal-templates.js",
+    "edit-food.js",
+    "water-tracker.js"
+  ];
+
   if (!html.includes("nutrition-enhancements.css")) {
-    html = html.replace(
-      "</head>",
-      '  <link rel="stylesheet" href="nutrition-enhancements.css" />\n</head>'
-    );
+    html = html.replace("</head>", '<link rel="stylesheet" href="nutrition-enhancements.css" /></head>');
   }
 
-  if (!html.includes("nutrition-enhancements.js")) {
-    html = html.replace(
-      "</body>",
-      '  <script type="module" src="nutrition-enhancements.js"></script>\n</body>'
-    );
-  }
-
-  if (!html.includes("meal-templates.js")) {
-    html = html.replace(
-      "</body>",
-      '  <script type="module" src="meal-templates.js"></script>\n</body>'
-    );
-  }
-
-  if (!html.includes("edit-food.js")) {
-    html = html.replace(
-      "</body>",
-      '  <script type="module" src="edit-food.js"></script>\n</body>'
-    );
-  }
-
-  return new Response(html, {
-    headers: {
-      "Content-Type": "text/html; charset=utf-8"
+  scripts.forEach((script) => {
+    if (!html.includes(script)) {
+      html = html.replace("</body>", `<script type="module" src="${script}"></script></body>`);
     }
   });
+
+  return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
 self.addEventListener("install", (event) => {
@@ -74,18 +60,13 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
+      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
     ).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
-
   if (request.method !== "GET") return;
 
   event.respondWith(
@@ -93,18 +74,11 @@ self.addEventListener("fetch", (event) => {
       .then(async (response) => {
         const responseClone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
-
-        if (shouldEnhanceIndex(request)) {
-          return enhanceIndexResponse(response);
-        }
-
-        return response;
+        return shouldEnhanceIndex(request) ? enhanceIndexResponse(response) : response;
       })
       .catch(async () => {
         const cached = await caches.match(request);
-        if (cached && shouldEnhanceIndex(request)) {
-          return enhanceIndexResponse(cached);
-        }
+        if (cached && shouldEnhanceIndex(request)) return enhanceIndexResponse(cached);
         return cached || caches.match("/fitflow/index.html");
       })
   );
