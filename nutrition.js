@@ -72,6 +72,7 @@ let state = {
   user: null,
   profile: structuredClone(DEFAULT_PROFILE),
   nutritionEntries: [],
+  foodFavorites: [],
   weights: [],
   walks: [],
   strengthSessions: [],
@@ -99,6 +100,7 @@ function loadLocal() {
   state.profile = JSON.parse(localStorage.getItem(storageKey("profile")) || "null") || structuredClone(DEFAULT_PROFILE);
   state.profile = { ...DEFAULT_PROFILE, ...state.profile };
   state.nutritionEntries = JSON.parse(localStorage.getItem(storageKey("nutritionEntries")) || "null") || [];
+  state.foodFavorites = JSON.parse(localStorage.getItem(storageKey("foodFavorites")) || "null") || [];
   state.weights = JSON.parse(localStorage.getItem(storageKey("weights")) || "null") || [];
   state.walks = JSON.parse(localStorage.getItem(storageKey("walks")) || "null") || [];
   state.strengthSessions = JSON.parse(localStorage.getItem(storageKey("strength")) || "null") || [];
@@ -107,6 +109,7 @@ function loadLocal() {
 function saveLocal() {
   localStorage.setItem(storageKey("profile"), JSON.stringify(state.profile));
   localStorage.setItem(storageKey("nutritionEntries"), JSON.stringify(state.nutritionEntries));
+  localStorage.setItem(storageKey("foodFavorites"), JSON.stringify(state.foodFavorites));
 }
 
 async function loadRemote() {
@@ -124,6 +127,9 @@ async function loadRemote() {
 
   const nutritionSnap = await getDocs(query(collection(firebase.db, "users", uid, "nutritionEntries"), orderBy("date", "desc")));
   state.nutritionEntries = nutritionSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  const favoritesSnap = await getDocs(query(collection(firebase.db, "users", uid, "foodFavorites"), orderBy("name", "asc")));
+  state.foodFavorites = favoritesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   const weightsSnap = await getDocs(query(collection(firebase.db, "users", uid, "weights"), orderBy("date", "asc")));
   state.weights = weightsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -250,6 +256,95 @@ function buildFoodPayload(raw) {
   };
 }
 
+function buildFavoritePayload(entry) {
+  return {
+    name: entry.name,
+    referenceType: entry.referenceType || "per100",
+    unit: entry.unit || (entry.referenceType === "portion" ? "portion" : "g"),
+    servingName: entry.servingName || "portion",
+    servingWeight: entry.servingWeight || null,
+    baseCalories: Number(entry.baseCalories || 0),
+    baseProtein: Number(entry.baseProtein || 0),
+    baseCarbs: Number(entry.baseCarbs || 0),
+    baseFat: Number(entry.baseFat || 0),
+    baseFiber: Number(entry.baseFiber || 0),
+    defaultQuantity: Number(entry.quantity || (entry.referenceType === "portion" ? 1 : 100))
+  };
+}
+
+async function addFoodFavorite(favorite) {
+  const existingIndex = state.foodFavorites.findIndex((item) =>
+    item.name.toLowerCase() === favorite.name.toLowerCase() &&
+    item.referenceType === favorite.referenceType &&
+    item.unit === favorite.unit
+  );
+
+  if (existingIndex >= 0) {
+    const existing = state.foodFavorites[existingIndex];
+    state.foodFavorites[existingIndex] = { ...existing, ...favorite };
+    if (firebase && state.user && existing.id) {
+      await updateDoc(doc(firebase.db, "users", state.user.uid, "foodFavorites", existing.id), {
+        ...favorite,
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      saveLocal();
+    }
+    return;
+  }
+
+  if (firebase && state.user) {
+    const docRef = await addDoc(collection(firebase.db, "users", state.user.uid, "foodFavorites"), {
+      ...favorite,
+      createdAt: serverTimestamp()
+    });
+    state.foodFavorites = [...state.foodFavorites, { ...favorite, id: docRef.id }].sort((a,b) => a.name.localeCompare(b.name));
+  } else {
+    state.foodFavorites = [...state.foodFavorites, { ...favorite, id: crypto.randomUUID?.() || String(Date.now()) }].sort((a,b) => a.name.localeCompare(b.name));
+    saveLocal();
+  }
+}
+
+async function deleteFoodFavorite(index) {
+  const favorite = state.foodFavorites[index];
+  if (!favorite) return;
+  if (!confirm(`Supprimer "${favorite.name}" des favoris ?`)) return;
+
+  state.foodFavorites.splice(index, 1);
+
+  if (firebase && state.user && favorite.id) {
+    await deleteDoc(doc(firebase.db, "users", state.user.uid, "foodFavorites", favorite.id));
+  } else {
+    saveLocal();
+  }
+
+  renderFavorites();
+}
+
+async function addFavoriteToDay(index) {
+  const favorite = state.foodFavorites[index];
+  if (!favorite) return;
+
+  const meal = prompt("Repas : breakfast, lunch, dinner ou snack", "breakfast");
+  if (meal === null) return;
+  const normalizedMeal = MEALS.includes(meal) ? meal : "breakfast";
+
+  const quantity = prompt("Quantité consommée", favorite.defaultQuantity || (favorite.referenceType === "portion" ? 1 : 100));
+  if (quantity === null) return;
+
+  const raw = {
+    ...favorite,
+    date: qs("#nutrition-date")?.value || todayISO(),
+    meal: normalizedMeal,
+    quantity: Number(quantity || favorite.defaultQuantity || 1),
+    favorite: false
+  };
+
+  const entry = buildFoodPayload(raw);
+  await addNutritionEntry(entry);
+  renderNutrition();
+}
+
 async function addNutritionEntry(entry) {
   if (firebase && state.user) {
     const docRef = await addDoc(collection(firebase.db, "users", state.user.uid, "nutritionEntries"), {
@@ -260,6 +355,10 @@ async function addNutritionEntry(entry) {
   } else {
     state.nutritionEntries = [{ ...entry, id: crypto.randomUUID?.() || String(Date.now()) }, ...state.nutritionEntries];
     saveLocal();
+  }
+
+  if (entry.favorite) {
+    await addFoodFavorite(buildFavoritePayload(entry));
   }
 }
 
@@ -441,7 +540,60 @@ function renderNutrition() {
     .map((message) => `<li>${escapeHtml(message)}</li>`)
     .join("");
 
+  renderFavorites();
   renderMeals(entries);
+}
+
+function ensureFavoritesCard() {
+  let card = qs("#nutrition-favorites-card");
+  if (card) return card;
+
+  const mealsCard = qs("#nutrition-meals")?.closest(".nutrition-card");
+  if (!mealsCard) return null;
+
+  card = document.createElement("article");
+  card.id = "nutrition-favorites-card";
+  card.className = "nutrition-card";
+  card.innerHTML = `
+    <div class="favorite-head">
+      <div>
+        <h3>Mes favoris ⭐</h3>
+        <small>Ajoute rapidement tes aliments fréquents.</small>
+      </div>
+    </div>
+    <div id="nutrition-favorites-list" class="favorite-list"></div>
+  `;
+  mealsCard.parentNode.insertBefore(card, mealsCard);
+  return card;
+}
+
+function renderFavorites() {
+  const card = ensureFavoritesCard();
+  const container = qs("#nutrition-favorites-list");
+  if (!card || !container) return;
+
+  container.innerHTML = state.foodFavorites.length
+    ? state.foodFavorites.map((favorite, index) => renderFavoriteItem(favorite, index)).join("")
+    : `<p class="empty-favorite">Aucun favori pour le moment. Coche “Ajouter à mes favoris” lors de la saisie d’un aliment.</p>`;
+}
+
+function renderFavoriteItem(favorite, index) {
+  const baseLabel = favorite.referenceType === "portion"
+    ? `par ${favorite.servingName || favorite.unit || "portion"}`
+    : `pour 100 ${favorite.unit || "g"}`;
+
+  return `
+    <div class="favorite-item">
+      <div>
+        <strong>${escapeHtml(favorite.name)}</strong>
+        <small>${baseLabel} · ${fmtInt(favorite.baseCalories)} kcal · P ${fmtNumber(favorite.baseProtein, 1)} · G ${fmtNumber(favorite.baseCarbs, 1)} · L ${fmtNumber(favorite.baseFat, 1)}</small>
+      </div>
+      <div class="favorite-actions">
+        <button class="mini-action add-favorite-to-day" data-index="${index}">+ Ajouter</button>
+        <button class="mini-action danger delete-favorite" data-index="${index}">Supprimer</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderMeals(entries) {
@@ -488,6 +640,7 @@ function renderFoodItem(entry) {
       </div>
       <div class="card-actions">
         <button class="mini-action edit-food" data-index="${realIndex}">Modifier</button>
+        <button class="mini-action favorite-food" data-index="${realIndex}">Favori</button>
         <button class="mini-action danger delete-food" data-index="${realIndex}">Supprimer</button>
       </div>
     </div>
@@ -559,6 +712,14 @@ async function editFood(index) {
   await updateNutritionEntry(index, payload);
 }
 
+async function addExistingEntryToFavorites(index) {
+  const entry = state.nutritionEntries[index];
+  if (!entry) return;
+  await addFoodFavorite(buildFavoritePayload(entry));
+  renderFavorites();
+  alert(`"${entry.name}" ajouté aux favoris ⭐`);
+}
+
 function bindNutritionEvents() {
   const dateInput = qs("#nutrition-date");
   if (dateInput) {
@@ -572,17 +733,23 @@ function bindNutritionEvents() {
     });
   });
 
-  qs("#nutrition-meals")?.addEventListener("click", async (event) => {
+  qs("#view-nutrition")?.addEventListener("click", async (event) => {
     const addButton = event.target.closest(".add-to-meal");
     const editButton = event.target.closest(".edit-food");
+    const favoriteButton = event.target.closest(".favorite-food");
     const deleteButton = event.target.closest(".delete-food");
+    const addFavoriteButton = event.target.closest(".add-favorite-to-day");
+    const deleteFavoriteButton = event.target.closest(".delete-favorite");
 
     if (addButton) {
       prefillNutritionForm(addButton.dataset.meal || "breakfast");
       qs("[data-open='nutrition-form']")?.click();
     }
     if (editButton) await editFood(Number(editButton.dataset.index));
+    if (favoriteButton) await addExistingEntryToFavorites(Number(favoriteButton.dataset.index));
     if (deleteButton) await deleteNutritionEntry(Number(deleteButton.dataset.index));
+    if (addFavoriteButton) await addFavoriteToDay(Number(addFavoriteButton.dataset.index));
+    if (deleteFavoriteButton) await deleteFoodFavorite(Number(deleteFavoriteButton.dataset.index));
   });
 
   const form = qs("#nutrition-form");
