@@ -62,6 +62,47 @@
   z-index:30;
 }
 
+/* Correctifs mobile : éviter le zoom iPhone au focus et améliorer le scroll clavier */
+html{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  overflow-x:hidden;
+}
+
+body{
+  overflow-x:hidden;
+  touch-action:manipulation;
+}
+
+input,
+select,
+textarea,
+button{
+  font-size:16px;
+}
+
+input,
+select,
+textarea{
+  line-height:1.35;
+  min-height:48px;
+  scroll-margin-top:24px;
+  scroll-margin-bottom:150px;
+}
+
+textarea{
+  min-height:112px;
+}
+
+.form-card,
+.profile-form{
+  padding-bottom:22px;
+}
+
+.view{
+  scroll-margin-bottom:150px;
+}
+
 @media (max-width:460px){
   .walker{
     width:166px;
@@ -69,12 +110,92 @@
     bottom:28px;
   }
 
+  .screen.active{
+    display:block;
+  }
+
+  .app-shell{
+    display:block;
+    min-height:100dvh;
+    width:100%;
+    overflow-x:hidden;
+  }
+
+  .phone,
+  .login-card{
+    min-height:100dvh;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+
   .phone{
-    padding-bottom:118px;
+    padding-left:16px;
+    padding-right:16px;
+    padding-bottom:calc(132px + env(safe-area-inset-bottom));
+  }
+
+  .login-card{
+    padding-left:20px;
+    padding-right:20px;
+  }
+
+  label,
+  .profile-form label{
+    grid-template-columns:1fr;
+    gap:8px;
+    font-size:14px;
+  }
+
+  input,
+  select,
+  textarea{
+    font-size:16px !important;
+    min-height:50px;
+    padding:14px 15px;
+    border-radius:16px;
+  }
+
+  .btn,
+  .mini-action,
+  .bottom-nav button{
+    font-size:16px;
+  }
+
+  .bottom-nav button span{
+    font-size:10px;
+  }
+
+  .form-header,
+  .tab-header,
+  .simple-header,
+  .topbar{
+    position:relative;
+    z-index:2;
+  }
+
+  .form-card:focus-within{
+    padding-bottom:calc(180px + env(safe-area-inset-bottom));
   }
 
   .bottom-nav{
     width:calc(100% - 20px);
     bottom:calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .nutrition-card:last-child,
+  .settings-card:last-child,
+  .history-list:last-child{
+    margin-bottom:24px;
+  }
+}
+
+@supports (-webkit-touch-callout:none){
+  @media (max-width:460px){
+    input,
+    select,
+    textarea{
+      font-size:16px !important;
+      transform:translateZ(0);
+    }
   }
 }
