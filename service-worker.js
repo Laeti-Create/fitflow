@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v21-activity-level";
+const CACHE_NAME = "fitflow-cache-v22-activity-level-force";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -40,8 +40,7 @@ async function enhanceIndexResponse(response) {
     "water-tracker.js",
     "weekly-trends.js",
     "nutrition-layout.js",
-    "edit-meal-templates.js",
-    "dashboard-day-summary.js"
+    "edit-meal-templates.js"
   ];
 
   if (!html.includes("nutrition-enhancements.css")) {
@@ -53,6 +52,9 @@ async function enhanceIndexResponse(response) {
       html = html.replace("</body>", `<script type="module" src="${script}"></script></body>`);
     }
   });
+
+  html = html.replace(/<script type="module" src="dashboard-day-summary\.js(\?v=[0-9]+)?"><\/script>/g, "");
+  html = html.replace("</body>", '<script type="module" src="dashboard-day-summary.js?v=22"></script></body>');
 
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
