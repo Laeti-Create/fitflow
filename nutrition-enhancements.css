@@ -106,6 +106,62 @@
   line-height:1.45;
 }
 
+.water-card{
+  background:linear-gradient(135deg,rgba(239,247,255,.96),rgba(255,255,255,.9));
+  border:1px solid rgba(126,151,166,.22);
+}
+
+.water-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.water-top h3{margin:0}
+
+.water-top small{
+  display:block;
+  color:var(--muted);
+  font-size:12px;
+  margin-top:4px;
+}
+
+.water-amount{
+  text-align:right;
+  color:var(--navy);
+  font-weight:800;
+  font-size:18px;
+}
+
+.water-progress{
+  height:12px;
+  border-radius:999px;
+  background:rgba(126,151,166,.16);
+  overflow:hidden;
+  margin:8px 0 12px;
+}
+
+.water-progress-fill{
+  height:100%;
+  width:0%;
+  border-radius:999px;
+  background:linear-gradient(90deg,#7E97A6,#B8D7E8);
+  transition:width .25s ease;
+}
+
+.water-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:flex-end;
+}
+
+.water-actions .mini-action{
+  background:rgba(255,255,255,.78);
+}
+
 .meal-template-list{
   display:grid;
   gap:12px;
@@ -232,12 +288,18 @@
 
   .nutrition-quick-card{grid-template-columns:40px 1fr auto}
 
+  .water-top,
   .meal-template-head,
   .meal-template-actions{
     justify-content:flex-start;
   }
 
+  .water-top,
   .meal-template-head{flex-direction:column}
+
+  .water-amount{text-align:left}
+
+  .water-actions{justify-content:flex-start}
 
   .nutrition-toast{
     bottom:calc(86px + env(safe-area-inset-bottom));
