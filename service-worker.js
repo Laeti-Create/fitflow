@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v20-dashboard-day";
+const CACHE_NAME = "fitflow-cache-v21-activity-level";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
