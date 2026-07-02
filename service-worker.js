@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v26-nutrition-ux";
+const CACHE_NAME = "fitflow-cache-v27-hide-empty-quick";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
