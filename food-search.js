@@ -19,10 +19,29 @@ const fb = (() => {
 function key(name){ return `fitflow:${user?.uid || "demo"}:${name}`; }
 function n(v){ return Number(v || 0); }
 function fmt(v){ return Math.round(n(v)).toLocaleString("fr-FR"); }
+function sleep(ms){ return new Promise((resolve) => setTimeout(resolve, ms)); }
 function toast(msg){
   let t = qs("#nutrition-save-toast");
   if(!t){ t = document.createElement("div"); t.id = "nutrition-save-toast"; t.className = "nutrition-toast"; document.body.appendChild(t); }
   t.textContent = msg; t.classList.add("active"); clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove("active"), 2200);
+}
+
+async function fetchJsonWithRetry(url, tries = 3){
+  let lastError;
+  for(let i=0;i<tries;i++){
+    try{
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 9000);
+      const response = await fetch(url, { signal:controller.signal, cache:"no-store" });
+      clearTimeout(timer);
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    }catch(error){
+      lastError = error;
+      if(i < tries - 1) await sleep(650 + i * 650);
+    }
+  }
+  throw lastError;
 }
 
 function nutriments(p){ return p?.nutriments || {}; }
@@ -51,36 +70,51 @@ function resultHtml(food, index){
   return `<button class="food-result" type="button" data-food-index="${index}"><strong>${food.name}</strong><small>${food.brand || ""}</small><span>${fmt(food.calories)} kcal · P ${food.protein.toFixed(1)} · G ${food.carbs.toFixed(1)} · L ${food.fat.toFixed(1)} · F ${food.fiber.toFixed(1)} /100g</span></button>`;
 }
 
-function notFoundHtml(code){
-  return `<p class="empty-template">Produit non trouvé ou valeurs nutritionnelles manquantes.</p><button class="mini-action wide" type="button" id="manual-product-btn" data-barcode="${code}">Ajouter manuellement ce produit</button>`;
+function notFoundHtml(code = ""){
+  const button = code ? `<button class="mini-action wide" type="button" id="manual-product-btn" data-barcode="${code}">Ajouter manuellement ce produit</button>` : "";
+  return `<p class="empty-template">Produit non trouvé ou valeurs nutritionnelles manquantes.</p>${button}`;
 }
 
 async function searchByText(){
   const q = qs("#food-search-text")?.value?.trim();
   if(!q){ toast("Tape un aliment à rechercher"); return; }
   const box = qs("#food-search-results");
-  box.innerHTML = `<p class="empty-template">Recherche en cours…</p>`;
+  const btn = qs("#food-search-btn");
+  box.innerHTML = `<p class="empty-template">Recherche en cours… si le réseau est lent, FitFlow relance automatiquement.</p>`;
+  btn.disabled = true;
   try{
-    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8&fields=code,product_name,product_name_fr,generic_name,generic_name_fr,brands,nutriments`;
-    const data = await fetch(url).then((r) => r.json());
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12&fields=code,product_name,product_name_fr,generic_name,generic_name_fr,brands,nutriments`;
+    const data = await fetchJsonWithRetry(url, 3);
     const foods = (data.products || []).map(toFood).filter((f) => f.calories || f.protein || f.carbs || f.fat);
     box.dataset.foods = JSON.stringify(foods);
-    box.innerHTML = foods.length ? foods.map(resultHtml).join("") : `<p class="empty-template">Aucun produit exploitable trouvé.</p>`;
-  }catch(e){ console.warn(e); box.innerHTML = `<p class="empty-template">Recherche indisponible pour le moment.</p>`; }
+    box.innerHTML = foods.length ? foods.map(resultHtml).join("") : `<p class="empty-template">Aucun produit exploitable trouvé. Essaie un nom plus simple, par exemple “skyr” plutôt que la marque complète.</p>`;
+  }catch(e){
+    console.warn(e);
+    box.innerHTML = `<p class="empty-template">Open Food Facts ne répond pas pour le moment. Réessaie dans quelques secondes ou ajoute l’aliment manuellement.</p>`;
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 async function searchByBarcode(){
   const code = qs("#food-barcode-text")?.value?.replace(/\D/g, "");
   if(!code){ toast("Entre un code-barres"); return; }
   const box = qs("#food-search-results");
-  box.innerHTML = `<p class="empty-template">Recherche du code-barres…</p>`;
+  const btn = qs("#food-barcode-btn");
+  box.innerHTML = `<p class="empty-template">Recherche du code-barres… relance automatique si besoin.</p>`;
+  btn.disabled = true;
   try{
     const url = `https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=code,product_name,product_name_fr,generic_name,generic_name_fr,brands,nutriments`;
-    const data = await fetch(url).then((r) => r.json());
+    const data = await fetchJsonWithRetry(url, 3);
     const foods = data.status === 1 ? [toFood(data.product)].filter((f) => f.calories || f.protein || f.carbs || f.fat) : [];
     box.dataset.foods = JSON.stringify(foods);
     box.innerHTML = foods.length ? foods.map(resultHtml).join("") : notFoundHtml(code);
-  }catch(e){ console.warn(e); box.innerHTML = `<p class="empty-template">Recherche code-barres indisponible.</p>${notFoundHtml(code)}`; }
+  }catch(e){
+    console.warn(e);
+    box.innerHTML = `<p class="empty-template">Recherche code-barres temporairement indisponible. Tu peux quand même créer ce produit.</p>${notFoundHtml(code)}`;
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 function ensureModal(){
