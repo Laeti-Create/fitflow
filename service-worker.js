@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v25-aligned-deficit";
+const CACHE_NAME = "fitflow-cache-v26-nutrition-ux";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
