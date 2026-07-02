@@ -38,21 +38,23 @@ function bmr(profile, weight){
 async function loadData(){
   const today = todayISO();
   if(fb && user){
-    const [profileSnap, weightsSnap, walksSnap, strengthSnap, nutritionSnap] = await Promise.all([
+    const [profileSnap, weightsSnap, walksSnap, strengthSnap, runsSnap, nutritionSnap] = await Promise.all([
       getDoc(doc(fb.db, "users", user.uid, "profile", "main")),
       getDocs(query(collection(fb.db, "users", user.uid, "weights"), orderBy("date", "desc"))),
       getDocs(query(collection(fb.db, "users", user.uid, "walks"), orderBy("date", "desc"))),
       getDocs(query(collection(fb.db, "users", user.uid, "strengthSessions"), orderBy("date", "desc"))),
+      getDocs(query(collection(fb.db, "users", user.uid, "runs"), orderBy("date", "desc"))),
       getDocs(query(collection(fb.db, "users", user.uid, "nutritionEntries"), orderBy("date", "desc")))
     ]);
     const profile = profileSnap.exists() ? profileSnap.data() : {};
     const weights = weightsSnap.docs.map((d) => d.data());
-    const walks = weightsSnap.docs.length ? walksSnap.docs.map((d) => d.data()).filter((e) => e.date === today) : walksSnap.docs.map((d) => d.data()).filter((e) => e.date === today);
+    const walks = walksSnap.docs.map((d) => d.data()).filter((e) => e.date === today);
     const strength = strengthSnap.docs.map((d) => d.data()).filter((e) => e.date === today);
+    const runs = runsSnap.docs.map((d) => d.data()).filter((e) => e.date === today);
     const nutrition = nutritionSnap.docs.map((d) => d.data()).filter((e) => e.date === today);
-    return { profile, weights, walks, strength, nutrition };
+    return { profile, weights, walks, strength, runs, nutrition };
   }
-  return { profile:JSON.parse(localStorage.getItem(key("profile")) || "{}"), weights:local("weights"), walks:local("walks").filter((e) => e.date === today), strength:local("strength").filter((e) => e.date === today), nutrition:local("nutritionEntries").filter((e) => e.date === today) };
+  return { profile:JSON.parse(localStorage.getItem(key("profile")) || "{}"), weights:local("weights"), walks:local("walks").filter((e) => e.date === today), strength:local("strength").filter((e) => e.date === today), runs:local("runs").filter((e) => e.date === today), nutrition:local("nutritionEntries").filter((e) => e.date === today) };
 }
 
 function ensureCard(){
@@ -84,13 +86,17 @@ async function render(){
     const basal = bmr(data.profile || {}, currentWeight);
     const dailyLife = Math.round(basal * level.rate);
     const eaten = data.nutrition.reduce((s,e) => s + n(e.calories), 0);
-    const active = data.walks.reduce((s,e) => s + n(e.calories), 0) + data.strength.reduce((s,e) => s + n(e.calories || (e.duration ? e.duration * 4 : 0)), 0);
+    const walkCalories = data.walks.reduce((s,e) => s + n(e.calories), 0);
+    const strengthCalories = data.strength.reduce((s,e) => s + n(e.calories || (e.duration ? e.duration * 4 : 0)), 0);
+    const runCalories = (data.runs || []).reduce((s,e) => s + n(e.calories || e.manualCalories || e.calculatedCalories), 0);
+    const active = walkCalories + strengthCalories + runCalories;
     const burned = basal + dailyLife + active;
     const deficit = burned - eaten;
     qs("#dash-day-eaten").textContent = fmt(eaten);
     qs("#dash-day-burned").textContent = fmt(burned);
     qs("#dash-day-deficit").textContent = `${deficit >= 0 ? "-" : "+"}${fmt(Math.abs(deficit))}`;
-    qs("#dash-day-note").textContent = active > 0 ? `${level.label} (+${Math.round(level.rate*100)} %) + ${fmt(active)} kcal de séances enregistrées.` : `${level.label} : environ ${fmt(dailyLife)} kcal de mouvements du quotidien.`;
+    const detail = active > 0 ? `${level.label} (+${Math.round(level.rate*100)} %) + ${fmt(active)} kcal de séances enregistrées.` : `${level.label} : environ ${fmt(dailyLife)} kcal de mouvements du quotidien.`;
+    qs("#dash-day-note").textContent = runCalories > 0 ? `${detail} Dont course : ${fmt(runCalories)} kcal.` : detail;
   }catch(e){ console.warn("Résumé journée non chargé", e); }
 }
 
