@@ -14,6 +14,16 @@
 .nutrition-quick-card b{color:var(--rose);font-size:22px}
 .estimated-note{margin:0;padding:12px;border-radius:16px;background:var(--rose-pale);color:var(--muted);font-size:12px;line-height:1.45}
 
+.nutrition-deficit-card{padding:14px;background:linear-gradient(135deg,rgba(255,243,246,.96),rgba(255,255,255,.9));border:1px solid rgba(241,221,228,.86)}
+.deficit-compact-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.deficit-compact-head h3{margin:0;color:var(--navy);font-size:16px}
+.deficit-compact-head small{display:block;margin-top:3px;color:var(--muted);font-size:11px;line-height:1.35}
+.nutrition-deficit-card .nutrition-mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:0}
+.nutrition-deficit-card .nutrition-mini{padding:10px;border-radius:15px;background:rgba(255,255,255,.78);border:1px solid rgba(241,221,228,.58)}
+.nutrition-deficit-card .nutrition-mini span{font-size:11px;line-height:1.25;color:var(--muted)}
+.nutrition-deficit-card .nutrition-mini strong{font-size:15px;line-height:1.15;color:var(--navy)}
+.nutrition-deficit-card .nutrition-mini small{font-size:10px;line-height:1.25;color:var(--muted)}
+
 .food-search-card{background:linear-gradient(135deg,rgba(255,247,248,.98),rgba(255,255,255,.9));border:1px solid rgba(241,221,228,.86)}
 .food-search-card h3{margin:0}
 .food-search-card small{display:block;color:var(--muted);font-size:12px;margin-top:3px;line-height:1.35}
