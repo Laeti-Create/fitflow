@@ -1,4 +1,5 @@
 /* Nutrition enhancements : ajout rapide favoris + repas global estimé */
+.fitflow-hidden-empty-quick{display:none !important}
 .nutrition-modal-overlay{position:fixed;inset:0;z-index:80;display:none;place-items:end center;background:rgba(31,41,55,.28);backdrop-filter:blur(8px);padding:18px}
 .nutrition-modal-overlay.active{display:grid}
 .nutrition-modal{width:min(100%, 430px);background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,247,248,.98));border:1px solid rgba(241,221,228,.9);border-radius:28px;box-shadow:0 24px 70px rgba(92,73,86,.22);padding:18px;max-height:min(86dvh, 720px);overflow:auto}
