@@ -32,6 +32,15 @@
 .day-summary-grid span{display:block;color:var(--muted);font-size:11px;line-height:1.25;margin-top:5px}
 .day-summary-note{margin:11px 0 0;color:var(--muted);font-size:12px;line-height:1.42}
 
+.run-goal-card{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:17px;border-radius:24px;background:linear-gradient(135deg,rgba(255,243,246,.98),rgba(255,255,255,.9));border:1px solid rgba(241,221,228,.86);box-shadow:0 12px 28px rgba(92,73,86,.06)}
+.run-goal-card h3{margin:0;color:var(--navy)}
+.run-goal-card p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.35}
+.run-goal-card span{font-size:28px}
+.run-stats{margin-bottom:14px}
+#view-run .history-list{margin-top:14px}
+#view-run .empty-template{padding:16px;border-radius:18px;background:rgba(255,255,255,.78);border:1px solid rgba(241,221,228,.7)}
+.bottom-nav [data-run-nav='run'] span{font-size:9px}
+
 /* Navigation toujours visible */
 .phone{padding-bottom:112px}
 .bottom-nav{position:fixed;left:50%;right:auto;bottom:calc(14px + env(safe-area-inset-bottom));width:min(calc(100% - 32px), 398px);transform:translateX(-50%);z-index:30}
@@ -54,11 +63,11 @@ textarea{min-height:112px}
   .login-card{padding-left:20px;padding-right:20px}
   label,.profile-form label{grid-template-columns:1fr;gap:8px;font-size:14px}
   input,select,textarea{font-size:16px !important;min-height:50px;padding:14px 15px;border-radius:16px}
-  .btn,.mini-action,.bottom-nav button{font-size:16px}
-  .bottom-nav button span{font-size:10px}
+  .btn,.mini-action,.bottom-nav button{font-size:15px}
+  .bottom-nav button span{font-size:9px}
   .form-header,.tab-header,.simple-header,.topbar{position:relative;z-index:2}
   .form-card:focus-within{padding-bottom:calc(180px + env(safe-area-inset-bottom))}
-  .bottom-nav{width:calc(100% - 20px);bottom:calc(10px + env(safe-area-inset-bottom))}
+  .bottom-nav{width:calc(100% - 12px);bottom:calc(10px + env(safe-area-inset-bottom));gap:2px;padding:8px 7px}
   .day-summary-grid{grid-template-columns:1fr}
   .nutrition-card:last-child,.settings-card:last-child,.history-list:last-child{margin-bottom:24px}
 }
