@@ -10,6 +10,23 @@ function moveAfter(anchor, element) {
   }
 }
 
+function hideEmptyQuickActionShell() {
+  const quickActions = qs(".nutrition-quick-actions");
+  if (!quickActions) return;
+
+  document.querySelectorAll("#view-nutrition article").forEach((article) => {
+    if (article.contains(quickActions)) {
+      article.classList.remove("fitflow-hidden-empty-quick");
+      return;
+    }
+
+    const title = article.querySelector("h3")?.textContent?.trim().toLowerCase() || "";
+    const hasInteractive = article.querySelector("button, input, select, textarea, .nutrition-quick-actions, .nutrition-food-item, .favorite-item, .meal-template-card, .water-actions, .weekly-grid");
+    const isEmptyQuickShell = title === "ajout rapide" && !hasInteractive;
+    article.classList.toggle("fitflow-hidden-empty-quick", isEmptyQuickShell);
+  });
+}
+
 function ensureDeficitCompactCard() {
   const miniGrid = qs(".nutrition-mini-grid");
   if (!miniGrid) return null;
@@ -69,6 +86,8 @@ function applyNutritionLayout() {
   } else if (weeklyCard && waterCard) {
     moveAfter(waterCard, weeklyCard);
   }
+
+  hideEmptyQuickActionShell();
 }
 
 function initNutritionLayout() {
