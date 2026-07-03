@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v30-running-integration";
+const CACHE_NAME = "fitflow-cache-v31-compact-search-live";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -20,6 +20,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/dashboard-day-summary.js",
   "/fitflow/food-search.js",
   "/fitflow/nutrition-pickers.js",
+  "/fitflow/nutrition-live-updates.js",
   "/fitflow/running.js",
   "/fitflow/running-integration.js",
   "/fitflow/firebase-config.js",
@@ -47,6 +48,7 @@ async function enhanceIndexResponse(response) {
     "edit-meal-templates.js",
     "food-search.js",
     "nutrition-pickers.js",
+    "nutrition-live-updates.js",
     "running.js",
     "running-integration.js"
   ];
