@@ -9,27 +9,27 @@ const MEAL_LABELS = {
   dinner:"Dîner",
   snack:"Collation"
 };
+const applied = new Set();
 
 function parseNumber(text){
   const match = String(text || "").replace(/\s/g, "").replace(",", ".").match(/-?[0-9]+(?:\.[0-9]+)?/);
   return match ? Number(match[0]) : 0;
 }
-
+function entryKey(entry){
+  return `${entry.date}|${entry.meal}|${entry.name}|${entry.calories}|${entry.quantity}|${entry.source || ""}`;
+}
 function displayQuantity(entry){
   const q = Number(entry.quantity || 0);
   const unit = entry.unit || "g";
   return `${fmt(q, q % 1 ? 1 : 0)} ${unit}`;
 }
-
-function foodHtml(entry){
-  return `<div class="nutrition-food-item live-added-food"><div><strong>${esc(entry.name)}</strong><small>${displayQuantity(entry)} · ${fmtInt(entry.calories)} kcal · P ${fmt(entry.protein)} · G ${fmt(entry.carbs)} · L ${fmt(entry.fat)} · F ${fmt(entry.fiber)}</small></div><div class="card-actions"><span class="mini-action">Ajouté</span></div></div>`;
+function foodHtml(entry, key){
+  return `<div class="nutrition-food-item live-added-food" data-live-key="${esc(key)}"><div><strong>${esc(entry.name)}</strong><small>${displayQuantity(entry)} · ${fmtInt(entry.calories)} kcal · P ${fmt(entry.protein)} · G ${fmt(entry.carbs)} · L ${fmt(entry.fat)} · F ${fmt(entry.fiber)}</small></div><div class="card-actions"><span class="mini-action">Ajouté</span></div></div>`;
 }
-
 function findMealCard(meal){
   const label = MEAL_LABELS[meal] || MEAL_LABELS.snack;
   return [...document.querySelectorAll(".nutrition-meal-card")].find((card) => card.querySelector("strong")?.textContent?.trim() === label);
 }
-
 function updateTopNumbers(entry){
   const consumed = qs("#nutrition-consumed");
   if(consumed) consumed.textContent = fmtInt(parseNumber(consumed.textContent) + Number(entry.calories || 0));
@@ -43,15 +43,15 @@ function updateTopNumbers(entry){
     left.textContent = `${next >= 0 && !isOver ? "Restant" : "Dépassé"} : ${fmtInt(Math.abs(next))} kcal`;
   }
 }
-
-function updateMeal(entry){
+function updateMeal(entry, key){
   const card = findMealCard(entry.meal);
   if(!card) return false;
   const list = card.querySelector(".nutrition-food-list");
   if(!list) return false;
+  if(list.querySelector(`[data-live-key="${CSS.escape(key)}"]`)) return true;
   const empty = list.querySelector(".empty-meal");
   if(empty) empty.remove();
-  list.insertAdjacentHTML("afterbegin", foodHtml(entry));
+  list.insertAdjacentHTML("afterbegin", foodHtml(entry, key));
 
   const small = card.querySelector(".meal-head small");
   if(small){
@@ -60,18 +60,21 @@ function updateMeal(entry){
   }
   return true;
 }
-
 function quickRefresh(entry){
   if(!entry) return;
+  const key = entryKey(entry);
+  if(applied.has(key)) return;
+  const inserted = updateMeal(entry, key);
+  if(!inserted) return;
   updateTopNumbers(entry);
-  updateMeal(entry);
+  applied.add(key);
   document.body.classList.add("fitflow-live-updated");
   setTimeout(() => document.body.classList.remove("fitflow-live-updated"), 1200);
 }
 
 window.addEventListener("fitflow:nutrition-entry-added", (event) => {
   const entry = event.detail?.entry;
-  quickRefresh(entry);
-  setTimeout(() => quickRefresh(entry), 350);
-  setTimeout(() => quickRefresh(entry), 900);
+  setTimeout(() => quickRefresh(entry), 120);
+  setTimeout(() => quickRefresh(entry), 450);
+  setTimeout(() => quickRefresh(entry), 1000);
 });
