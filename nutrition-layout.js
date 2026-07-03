@@ -1,4 +1,6 @@
 const qs = (selector) => document.querySelector(selector);
+let layoutTimer = null;
+let observerStarted = false;
 
 function cardOf(selector) {
   return qs(selector)?.closest("article");
@@ -9,6 +11,12 @@ function moveAfter(anchor, element) {
     anchor.insertAdjacentElement("afterend", element);
   }
 }
+
+function requestNutritionLayout(delay = 120) {
+  clearTimeout(layoutTimer);
+  layoutTimer = setTimeout(applyNutritionLayout, delay);
+}
+window.fitflowRequestNutritionLayout = requestNutritionLayout;
 
 function hideEmptyQuickActionShell() {
   const quickActions = qs(".nutrition-quick-actions");
@@ -90,15 +98,24 @@ function applyNutritionLayout() {
   hideEmptyQuickActionShell();
 }
 
+function startObserver() {
+  const root = qs("#view-nutrition");
+  if (!root || observerStarted) return;
+  observerStarted = true;
+  const observer = new MutationObserver(() => requestNutritionLayout(180));
+  observer.observe(root, { childList:true, subtree:false });
+}
+
 function initNutritionLayout() {
   applyNutritionLayout();
   setTimeout(applyNutritionLayout, 400);
-  setTimeout(applyNutritionLayout, 1200);
-  setInterval(applyNutritionLayout, 2500);
-  window.addEventListener("focus", () => setTimeout(applyNutritionLayout, 250));
+  setTimeout(() => { applyNutritionLayout(); startObserver(); }, 1200);
+  window.addEventListener("focus", () => requestNutritionLayout(200));
+  window.addEventListener("fitflow:nutrition-entry-added", () => requestNutritionLayout(220));
+  window.addEventListener("fitflow:nutrition-data-changed", () => requestNutritionLayout(220));
   document.addEventListener("click", (event) => {
-    if (event.target.closest("[data-nav='nutrition'], [data-open='nutrition-form'], [data-water-add], .add-template-to-day, .delete-template, .edit-food, .delete-food, .favorite-food, #food-search-btn, #food-barcode-btn")) {
-      setTimeout(applyNutritionLayout, 450);
+    if (event.target.closest("[data-nav='nutrition'], [data-open='nutrition-form'], [data-water-add], .add-template-to-day, .delete-template, .edit-food, .delete-food, .favorite-food, #food-search-btn, #food-barcode-btn, #open-food-search-modal, #open-favorites-picker, #open-templates-picker")) {
+      requestNutritionLayout(300);
     }
   });
 }
