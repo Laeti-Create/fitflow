@@ -9,6 +9,9 @@ const MEALS = ["breakfast", "lunch", "dinner", "snack"];
 let user = null;
 let editingIndex = null;
 let editingEntry = null;
+let cachedEntries = [];
+let cacheAt = 0;
+let openingToken = 0;
 
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v) => String(v).includes("REMPLACE_MOI"));
 const fb = (() => {
@@ -30,14 +33,29 @@ function toast(message){
   toast.id = setTimeout(() => t.classList.remove("active"), 2200);
 }
 
-function refresh(){ window.dispatchEvent(new Event("focus")); setTimeout(() => window.dispatchEvent(new Event("focus")), 350); }
+function refresh(){
+  window.dispatchEvent(new CustomEvent("fitflow:nutrition-data-changed"));
+  window.dispatchEvent(new Event("focus"));
+  setTimeout(() => window.dispatchEvent(new Event("focus")), 350);
+}
 
-async function loadEntry(index){
+async function loadEntries(force = false){
+  if(!force && cachedEntries.length && Date.now() - cacheAt < 15000) return cachedEntries;
   if(fb && user){
     const snap = await getDocs(query(collection(fb.db, "users", user.uid, "nutritionEntries"), orderBy("date", "desc")));
-    return snap.docs.map((d) => ({ id:d.id, ...d.data() }))[index] || null;
+    cachedEntries = snap.docs.map((d) => ({ id:d.id, ...d.data() }));
+  }else{
+    cachedEntries = localEntries();
   }
-  return localEntries()[index] || null;
+  cacheAt = Date.now();
+  return cachedEntries;
+}
+
+async function loadEntry(index){
+  const cached = cachedEntries[index];
+  if(cached) return cached;
+  const entries = await loadEntries(true);
+  return entries[index] || null;
 }
 
 function calc(raw){
@@ -91,7 +109,7 @@ function modal(){
   o.className = "nutrition-modal-overlay";
   o.innerHTML = `
     <section class="nutrition-modal" role="dialog" aria-modal="true">
-      <div class="nutrition-modal-head"><div><h3>Modifier l’aliment</h3><p>Ajuste les champs puis enregistre.</p></div><button class="nutrition-modal-close" type="button">×</button></div>
+      <div class="nutrition-modal-head"><div><h3>Modifier l’aliment</h3><p id="edit-food-status">Ajuste les champs puis enregistre.</p></div><button class="nutrition-modal-close" type="button">×</button></div>
       <form id="edit-food-form" class="form-card">
         <label>Date <input name="date" type="date" required /></label>
         <label>Repas <select name="meal"><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="dinner">Dîner</option><option value="snack">Collation</option></select></label>
@@ -116,6 +134,13 @@ function modal(){
   return o;
 }
 
+function setFormDisabled(disabled){
+  const f = qs("#edit-food-form");
+  if(!f) return;
+  [...f.elements].forEach((el) => { if(el.type !== "submit") el.disabled = disabled; });
+  f.querySelector("button[type='submit']").disabled = disabled;
+}
+
 function fill(entry){
   const f = qs("#edit-food-form");
   f.elements.date.value = entry.date || todayISO();
@@ -132,18 +157,57 @@ function fill(entry){
   f.elements.baseFiber.value = entry.baseFiber ?? entry.fiber ?? 0;
 }
 
+function fillLoading(){
+  const f = qs("#edit-food-form");
+  if(!f) return;
+  f.elements.date.value = todayISO();
+  f.elements.meal.value = "breakfast";
+  f.elements.name.value = "Chargement…";
+  f.elements.referenceType.value = "per100";
+  f.elements.quantity.value = 0;
+  f.elements.unit.value = "g";
+  f.elements.servingName.value = "";
+  f.elements.baseCalories.value = 0;
+  f.elements.baseProtein.value = 0;
+  f.elements.baseCarbs.value = 0;
+  f.elements.baseFat.value = 0;
+  f.elements.baseFiber.value = 0;
+}
+
 async function openEdit(index){
-  const entry = await loadEntry(index);
-  if(!entry){ toast("Aliment introuvable"); return; }
+  const token = ++openingToken;
   editingIndex = index;
-  editingEntry = entry;
+  editingEntry = null;
   const o = modal();
-  fill(entry);
+  fillLoading();
+  setFormDisabled(true);
+  qs("#edit-food-status").textContent = "Chargement de l’aliment…";
   o.classList.add("active");
+
+  try{
+    const entry = await loadEntry(index);
+    if(token !== openingToken) return;
+    if(!entry){
+      toast("Aliment introuvable");
+      o.classList.remove("active");
+      return;
+    }
+    editingEntry = entry;
+    fill(entry);
+    setFormDisabled(false);
+    qs("#edit-food-status").textContent = "Ajuste les champs puis enregistre.";
+  }catch(err){
+    console.warn("Chargement aliment échoué", err);
+    if(token === openingToken){
+      toast("Chargement impossible");
+      o.classList.remove("active");
+    }
+  }
 }
 
 async function saveEdit(e){
   e.preventDefault();
+  if(!editingEntry){ toast("Aliment encore en chargement"); return; }
   const form = e.currentTarget;
   const btn = form.querySelector("button[type='submit']");
   const old = btn.textContent;
@@ -158,6 +222,7 @@ async function saveEdit(e){
       entries[editingIndex] = { ...entries[editingIndex], ...update, updatedAt:new Date().toISOString() };
       saveLocalEntries(entries);
     }
+    cachedEntries[editingIndex] = { ...editingEntry, ...update };
     qs("#edit-food-modal")?.classList.remove("active");
     toast("Aliment modifié ✅");
     refresh();
@@ -176,7 +241,10 @@ function bind(){
     e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
     openEdit(Number(b.dataset.index));
   }, true);
+  window.addEventListener("focus", () => { if(user) loadEntries(false).catch(()=>{}); });
+  window.addEventListener("fitflow:nutrition-data-changed", () => { cachedEntries = []; cacheAt = 0; });
+  window.addEventListener("fitflow:nutrition-entry-added", () => { cachedEntries = []; cacheAt = 0; });
 }
 
-if(fb){ onAuthStateChanged(fb.auth, (u) => { user = u; }); } else { user = { uid:"demo" }; }
+if(fb){ onAuthStateChanged(fb.auth, (u) => { user = u; if(user) loadEntries(true).catch(()=>{}); }); } else { user = { uid:"demo" }; }
 if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind); else bind();
