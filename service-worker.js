@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v31-compact-search-live";
+const CACHE_NAME = "fitflow-cache-v32-ux-performance";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
