@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v36-nutrition-performance-final";
+const CACHE_NAME = "fitflow-cache-v37-home-cleanup";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -10,6 +10,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/app.js",
   "/fitflow/nutrition.js",
   "/fitflow/home-coach.js",
+  "/fitflow/home-cleanup.js",
   "/fitflow/nutrition-enhancements.js",
   "/fitflow/meal-templates.js",
   "/fitflow/nutrition-date-tools.js",
@@ -54,7 +55,8 @@ async function enhanceIndexResponse(response) {
     "nutrition-pickers.js",
     "nutrition-live-updates.js",
     "running.js",
-    "running-integration.js"
+    "running-integration.js",
+    "home-cleanup.js"
   ];
 
   if (!html.includes("nutrition-enhancements.css")) {
