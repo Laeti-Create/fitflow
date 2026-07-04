@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v38-home-coach-removed";
+const CACHE_NAME = "fitflow-cache-v39-barcode-scanner";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -23,6 +23,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/food-search.js",
   "/fitflow/nutrition-pickers.js",
   "/fitflow/nutrition-live-updates.js",
+  "/fitflow/barcode-scanner.js",
   "/fitflow/running.js",
   "/fitflow/running-integration.js",
   "/fitflow/firebase-config.js",
@@ -55,6 +56,7 @@ async function enhanceIndexResponse(response) {
     "food-search.js",
     "nutrition-pickers.js",
     "nutrition-live-updates.js",
+    "barcode-scanner.js",
     "running.js",
     "running-integration.js"
   ];
