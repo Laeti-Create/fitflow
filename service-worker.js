@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v40-barcode-loader-fix";
+const CACHE_NAME = "fitflow-cache-v41-simple-food-search";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
