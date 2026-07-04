@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v37-home-cleanup";
+const CACHE_NAME = "fitflow-cache-v38-home-coach-removed";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -10,7 +10,6 @@ const ASSETS_TO_CACHE = [
   "/fitflow/app.js",
   "/fitflow/nutrition.js",
   "/fitflow/home-coach.js",
-  "/fitflow/home-cleanup.js",
   "/fitflow/nutrition-enhancements.js",
   "/fitflow/meal-templates.js",
   "/fitflow/nutrition-date-tools.js",
@@ -41,6 +40,8 @@ function shouldEnhanceIndex(request) {
 async function enhanceIndexResponse(response) {
   let html = await response.text();
 
+  html = html.replace(/\n\s*<article class="coach-card">\s*<button class="close-card">×<\/button>\s*<strong>Message du coach<\/strong>\s*<p>Régularité \+ patience = transformation\. Tu es sur la bonne voie 💪<\/p>\s*<\/article>/, "");
+
   const scripts = [
     "nutrition-enhancements.js",
     "meal-templates.js",
@@ -55,8 +56,7 @@ async function enhanceIndexResponse(response) {
     "nutrition-pickers.js",
     "nutrition-live-updates.js",
     "running.js",
-    "running-integration.js",
-    "home-cleanup.js"
+    "running-integration.js"
   ];
 
   if (!html.includes("nutrition-enhancements.css")) {
