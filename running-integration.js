@@ -6,6 +6,10 @@ import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy } from "
 const qs = (s) => document.querySelector(s);
 const todayISO = () => new Date().toISOString().slice(0,10);
 let user = null;
+let dataCache = null;
+let dataCacheAt = 0;
+let dataCacheDate = "";
+let syncTimer = null;
 
 const LEVELS = { calm:{label:"Calme",rate:.10}, normal:{label:"Normale",rate:.15}, active:{label:"Active",rate:.20} };
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v)=>String(v).includes("REMPLACE_MOI"));
@@ -20,8 +24,11 @@ function weekStart(d=new Date()){ const x=new Date(d); const day=(x.getDay()+6)%
 function isThisWeek(iso){ const d=new Date(`${iso}T12:00:00`); return d >= weekStart() && d <= new Date(); }
 function bmr(profile, weight){ const h=n(profile.height || 1.63)*100; const age=n(profile.age || 35); return Math.round(10*weight + 6.25*h - 5*age + (profile.sex === "male" ? 5 : -161)); }
 function levelFor(date){ const k=localStorage.getItem(key(`dailyActivityLevel:${date}`)) || "normal"; return LEVELS[k] || LEVELS.normal; }
+function selectedDate(){ return qs("#nutrition-date")?.value || todayISO(); }
+function invalidateCache(){ dataCache = null; dataCacheAt = 0; dataCacheDate = ""; }
 
-async function loadAll(date){
+async function loadAll(date, force = false){
+  if(!force && dataCache && dataCacheDate === date && Date.now() - dataCacheAt < 4500) return dataCache;
   if(fb && user){
     const [profileSnap, weightsSnap, walksSnap, strengthSnap, runsSnap, nutritionSnap] = await Promise.all([
       getDoc(doc(fb.db,"users",user.uid,"profile","main")),
@@ -31,7 +38,7 @@ async function loadAll(date){
       getDocs(query(collection(fb.db,"users",user.uid,"runs"), orderBy("date","desc"))),
       getDocs(query(collection(fb.db,"users",user.uid,"nutritionEntries"), orderBy("date","desc")))
     ]);
-    return {
+    dataCache = {
       profile:profileSnap.exists()?profileSnap.data():{},
       weights:weightsSnap.docs.map(d=>d.data()),
       walks:walksSnap.docs.map(d=>d.data()),
@@ -39,8 +46,12 @@ async function loadAll(date){
       runs:runsSnap.docs.map(d=>d.data()),
       nutrition:nutritionSnap.docs.map(d=>d.data()).filter(e=>e.date===date)
     };
+  }else{
+    dataCache = { profile:JSON.parse(localStorage.getItem(key("profile")) || "{}"), weights:local("weights"), walks:local("walks"), strength:local("strength"), runs:local("runs"), nutrition:local("nutritionEntries").filter(e=>e.date===date) };
   }
-  return { profile:JSON.parse(localStorage.getItem(key("profile")) || "{}"), weights:local("weights"), walks:local("walks"), strength:local("strength"), runs:local("runs"), nutrition:local("nutritionEntries").filter(e=>e.date===date) };
+  dataCacheDate = date;
+  dataCacheAt = Date.now();
+  return dataCache;
 }
 
 function sums(data, date){
@@ -57,11 +68,11 @@ function sums(data, date){
   return { eaten, basal, dailyLife, walk, strength, run, activity, burned, deficit:burned-eaten, level };
 }
 
-async function syncNutritionDeficit(){
+async function syncNutritionDeficit(force = false){
   if(!qs("#nutrition-deficit")) return;
-  const date=qs("#nutrition-date")?.value || todayISO();
+  const date=selectedDate();
   try{
-    const data=await loadAll(date);
+    const data=await loadAll(date, force);
     const s=sums(data,date);
     qs("#nutrition-deficit").textContent=`${s.deficit >= 0 ? "-" : "+"}${fmt(Math.abs(s.deficit))} kcal`;
     qs("#nutrition-burned").textContent=`${fmt(s.burned)} kcal`;
@@ -71,6 +82,11 @@ async function syncNutritionDeficit(){
     const small=activityCard?.querySelector("small");
     if(small) small.textContent = s.run > 0 ? `${s.level.label} + FitFlow + course` : `${s.level.label} + activités FitFlow`;
   }catch(e){ console.warn("Déficit course non synchronisé", e); }
+}
+
+function requestSync(delay = 650, force = false){
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => syncNutritionDeficit(force), delay);
 }
 
 function ensureWeeklyRunCard(){
@@ -85,10 +101,10 @@ function ensureWeeklyRunCard(){
   return card;
 }
 
-async function syncDashboardRunWeek(){
+async function syncDashboardRunWeek(force = false){
   if(!ensureWeeklyRunCard()) return;
   try{
-    const data=await loadAll(todayISO());
+    const data=await loadAll(todayISO(), force);
     const weekRuns=(data.runs || []).filter(r=>isThisWeek(r.date));
     const distance=weekRuns.reduce((s,r)=>s+n(r.distance),0);
     const calories=weekRuns.reduce((s,r)=>s+n(r.calories || r.manualCalories || r.calculatedCalories),0);
@@ -98,14 +114,15 @@ async function syncDashboardRunWeek(){
 }
 
 function init(){
-  syncNutritionDeficit();
-  syncDashboardRunWeek();
-  setTimeout(()=>{ syncNutritionDeficit(); syncDashboardRunWeek(); },800);
-  window.addEventListener("focus",()=>setTimeout(()=>{ syncNutritionDeficit(); syncDashboardRunWeek(); },250));
+  requestSync(400, true);
+  syncDashboardRunWeek(true);
+  window.addEventListener("focus",()=>requestSync(900));
+  window.addEventListener("fitflow:nutrition-data-changed",()=>requestSync(1200, true));
+  window.addEventListener("fitflow:nutrition-entry-added",()=>requestSync(1600, true));
   document.addEventListener("click",e=>{
-    if(e.target.closest("[data-nav='nutrition'], [data-nav='dashboard'], [data-run-nav], .day-level-selector button")) setTimeout(()=>{ syncNutritionDeficit(); syncDashboardRunWeek(); },500);
+    if(e.target.closest("[data-nav='nutrition'], [data-nav='dashboard'], [data-run-nav], .day-level-selector button")) requestSync(650);
   });
-  document.addEventListener("change",e=>{ if(e.target?.id === "nutrition-date") setTimeout(syncNutritionDeficit,250); });
+  document.addEventListener("change",e=>{ if(e.target?.id === "nutrition-date"){ invalidateCache(); requestSync(250, true); } });
 }
 
-if(fb) onAuthStateChanged(fb.auth,u=>{ user=u; init(); }); else { user={uid:"demo"}; if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init(); }
+if(fb) onAuthStateChanged(fb.auth,u=>{ user=u; invalidateCache(); init(); }); else { user={uid:"demo"}; if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init(); }
