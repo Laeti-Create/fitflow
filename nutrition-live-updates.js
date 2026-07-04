@@ -2,6 +2,7 @@ const qs = (s) => document.querySelector(s);
 const fmt = (v, d=1) => Number(v || 0).toLocaleString("fr-FR", { minimumFractionDigits:d, maximumFractionDigits:d });
 const fmtInt = (v) => Math.round(Number(v || 0)).toLocaleString("fr-FR");
 const esc = (v) => String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const MEAL_LABELS = {
   breakfast:"Petit-déjeuner",
@@ -11,12 +12,15 @@ const MEAL_LABELS = {
 };
 const applied = new Set();
 
+function selectedDate(){
+  return qs("#nutrition-date")?.value || todayISO();
+}
 function parseNumber(text){
   const match = String(text || "").replace(/\s/g, "").replace(",", ".").match(/-?[0-9]+(?:\.[0-9]+)?/);
   return match ? Number(match[0]) : 0;
 }
 function entryKey(entry){
-  return `${entry.date}|${entry.meal}|${entry.name}|${entry.calories}|${entry.quantity}|${entry.source || ""}`;
+  return `${entry.date}|${entry.meal}|${entry.name}|${entry.calories}|${entry.quantity}|${entry.source || ""}|${entry.id || ""}`;
 }
 function displayQuantity(entry){
   const q = Number(entry.quantity || 0);
@@ -62,6 +66,7 @@ function updateMeal(entry, key){
 }
 function quickRefresh(entry){
   if(!entry) return;
+  if(entry.date && entry.date !== selectedDate()) return;
   const key = entryKey(entry);
   if(applied.has(key)) return;
   const inserted = updateMeal(entry, key);
