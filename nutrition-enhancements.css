@@ -42,11 +42,21 @@
 .food-search-card small{display:block;color:var(--muted);font-size:12px;margin-top:3px;line-height:1.35}
 .food-search-form{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
 .food-search-form input{min-height:44px;border:1px solid rgba(241,221,228,.9);border-radius:16px;background:rgba(255,255,255,.82);padding:11px 13px;color:var(--navy)}
+.food-barcode-row{grid-template-columns:1fr auto auto}
+.scan-action{background:linear-gradient(135deg,var(--rose),var(--gold));color:#fff;border-color:transparent;box-shadow:0 10px 22px rgba(239,111,145,.22)}
 .food-search-results{display:grid;gap:8px;margin-top:12px}
 .food-result{border:1px solid rgba(241,221,228,.78);background:rgba(255,255,255,.86);border-radius:17px;padding:11px 12px;text-align:left;display:grid;gap:4px;color:var(--navy)}
 .food-result strong{font-size:14px}
 .food-result span{font-size:12px;color:var(--muted);line-height:1.35}
 .food-result:active{transform:scale(.99)}
+.barcode-scanner-overlay{z-index:130;place-items:center;background:rgba(24,31,42,.42)}
+.barcode-scanner-modal{max-height:92dvh;overflow:hidden}
+.barcode-video-wrap{position:relative;overflow:hidden;border-radius:24px;background:#101827;aspect-ratio:3/4;border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.barcode-video-wrap video{width:100%;height:100%;object-fit:cover;display:block;background:#101827}
+.barcode-frame{position:absolute;inset:20%;border:2px solid rgba(255,255,255,.92);border-radius:18px;box-shadow:0 0 0 999px rgba(0,0,0,.24)}
+.barcode-frame span{position:absolute;left:10%;right:10%;top:50%;height:2px;background:linear-gradient(90deg,transparent,#fff,transparent);box-shadow:0 0 14px rgba(255,255,255,.8)}
+.barcode-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}
+.barcode-help{margin:10px 0 0;color:var(--muted);font-size:12px;line-height:1.4}
 
 .water-card{background:linear-gradient(135deg,rgba(239,247,255,.96),rgba(255,255,255,.9));border:1px solid rgba(126,151,166,.22)}
 .water-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
@@ -89,6 +99,10 @@
   .picker-compact-actions{justify-content:flex-start}
   .picker-list{max-height:48dvh}
   .food-search-form{grid-template-columns:1fr}
+  .food-barcode-row{grid-template-columns:1fr 1fr}
+  .food-barcode-row input{grid-column:1 / -1}
+  .barcode-video-wrap{aspect-ratio:3/4;max-height:58dvh}
+  .barcode-actions{justify-content:flex-start}
   .water-top,.weekly-head,.meal-template-head,.meal-template-actions{justify-content:flex-start}
   .water-top,.weekly-head,.meal-template-head{flex-direction:column}
   .water-amount{text-align:left}
