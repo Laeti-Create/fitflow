@@ -16,10 +16,15 @@ const fb = (() => {
   return { auth:getAuth(app), db:getFirestore(app) };
 })();
 
+const SIMPLE_FOODS = [
+  { keywords:["myrtille", "myrtilles", "blueberry", "blueberries"], name:"Myrtilles fraîches", brand:"· Aliment simple", calories:57, protein:0.7, carbs:14.5, fat:0.3, fiber:2.4, barcode:"", simple:true }
+];
+
 function key(name){ return `fitflow:${user?.uid || "demo"}:${name}`; }
 function n(v){ return Number(v || 0); }
 function fmt(v){ return Math.round(n(v)).toLocaleString("fr-FR"); }
 function sleep(ms){ return new Promise((resolve) => setTimeout(resolve, ms)); }
+function normalizeText(value){ return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); }
 function toast(msg){
   let t = qs("#nutrition-save-toast");
   if(!t){ t = document.createElement("div"); t.id = "nutrition-save-toast"; t.className = "nutrition-toast"; document.body.appendChild(t); }
@@ -28,6 +33,35 @@ function toast(msg){
 function notifyNutrition(entry){
   window.dispatchEvent(new CustomEvent("fitflow:nutrition-entry-added", { detail:{ entry } }));
   window.dispatchEvent(new CustomEvent("fitflow:nutrition-data-changed", { detail:{ source:"food-search", light:true } }));
+}
+function simpleFoodsForSearch(queryText){
+  const q = normalizeText(queryText);
+  if(!q) return [];
+  return SIMPLE_FOODS.filter((food) => food.keywords.some((keyword) => q === normalizeText(keyword) || q.includes(normalizeText(keyword))));
+}
+function scoreFood(food, queryText){
+  const q = normalizeText(queryText);
+  const name = normalizeText(food.name);
+  const brand = normalizeText(food.brand);
+  let score = 0;
+  if(food.simple) score += 1000;
+  if(name === q) score += 500;
+  if(name.startsWith(q)) score += 260;
+  if(name.includes(q)) score += 160;
+  if(brand.includes(q)) score += 30;
+  if(/muesli|barre|confiture|yaourt|kefir|sable|fourre|cereale|dessert/.test(name)) score -= 60;
+  return score;
+}
+function rankFoods(foods, queryText){
+  const seen = new Set();
+  return foods
+    .filter((food) => {
+      const k = `${normalizeText(food.name)}|${normalizeText(food.brand)}|${food.calories}|${food.protein}|${food.carbs}|${food.fat}`;
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .sort((a,b) => scoreFood(b, queryText) - scoreFood(a, queryText));
 }
 
 async function fetchJsonWithRetry(url, tries = 3){
@@ -53,7 +87,7 @@ function productName(p){ return p?.product_name_fr || p?.product_name || p?.gene
 function brand(p){ return p?.brands ? ` · ${p.brands}` : ""; }
 function toFood(p){
   const nu = nutriments(p);
-  return { name:productName(p), brand:brand(p), calories:n(nu["energy-kcal_100g"] ?? nu["energy-kcal"]), protein:n(nu.proteins_100g), carbs:n(nu.carbohydrates_100g), fat:n(nu.fat_100g), fiber:n(nu.fiber_100g), barcode:p.code || p._id || "" };
+  return { name:productName(p), brand:brand(p), calories:n(nu["energy-kcal_100g"] ?? nu["energy-kcal"]), protein:n(nu.proteins_100g), carbs:n(nu.carbohydrates_100g), fat:n(nu.fat_100g), fiber:n(nu.fiber_100g), barcode:p.code || p._id || "", simple:false };
 }
 
 function ensureCard(){
@@ -90,7 +124,8 @@ function openSearchModal(){
 }
 
 function resultHtml(food, index){
-  return `<button class="food-result" type="button" data-food-index="${index}"><strong>${food.name}</strong><small>${food.brand || ""}</small><span>${fmt(food.calories)} kcal · P ${food.protein.toFixed(1)} · G ${food.carbs.toFixed(1)} · L ${food.fat.toFixed(1)} · F ${food.fiber.toFixed(1)} /100g</span></button>`;
+  const badge = food.simple ? `<em class="simple-food-badge">Aliment simple</em>` : "";
+  return `<button class="food-result ${food.simple ? "simple-food-result" : ""}" type="button" data-food-index="${index}"><strong>${food.name} ${badge}</strong><small>${food.brand || ""}</small><span>${fmt(food.calories)} kcal · P ${food.protein.toFixed(1)} · G ${food.carbs.toFixed(1)} · L ${food.fat.toFixed(1)} · F ${food.fiber.toFixed(1)} /100g</span></button>`;
 }
 function notFoundHtml(code = ""){
   const button = code ? `<button class="mini-action wide" type="button" id="manual-product-btn" data-barcode="${code}">Ajouter manuellement ce produit</button>` : "";
@@ -107,12 +142,15 @@ async function searchByText(){
   try{
     const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12&fields=code,product_name,product_name_fr,generic_name,generic_name_fr,brands,nutriments`;
     const data = await fetchJsonWithRetry(url, 3);
-    const foods = (data.products || []).map(toFood).filter((f) => f.calories || f.protein || f.carbs || f.fat);
+    const openFoodFacts = (data.products || []).map(toFood).filter((f) => f.calories || f.protein || f.carbs || f.fat);
+    const foods = rankFoods([...simpleFoodsForSearch(q), ...openFoodFacts], q);
     box.dataset.foods = JSON.stringify(foods);
     box.innerHTML = foods.length ? foods.map(resultHtml).join("") : `<p class="empty-template">Aucun produit exploitable trouvé. Essaie un nom plus simple, par exemple “skyr”.</p>`;
   }catch(e){
     console.warn(e);
-    box.innerHTML = `<p class="empty-template">Open Food Facts ne répond pas pour le moment. Réessaie ou ajoute l’aliment manuellement.</p>`;
+    const simpleFoods = simpleFoodsForSearch(q);
+    box.dataset.foods = JSON.stringify(simpleFoods);
+    box.innerHTML = simpleFoods.length ? simpleFoods.map(resultHtml).join("") : `<p class="empty-template">Open Food Facts ne répond pas pour le moment. Réessaie ou ajoute l’aliment manuellement.</p>`;
   }finally{ btn.disabled = false; }
 }
 async function searchByBarcode(){
@@ -174,7 +212,7 @@ function manualProductFromForm(form){
 }
 function buildEntry(food, quantity, mealValue){
   const factor = n(quantity) / 100;
-  return { date:qs("#nutrition-date")?.value || todayISO(), meal:mealValue || "snack", name:food.name, referenceType:"per100", quantity:n(quantity), unit:"g", servingName:"portion", servingWeight:null, baseCalories:food.calories, baseProtein:food.protein, baseCarbs:food.carbs, baseFat:food.fat, baseFiber:food.fiber, favorite:false, calories:Math.round(food.calories * factor), protein:Number((food.protein * factor).toFixed(1)), carbs:Number((food.carbs * factor).toFixed(1)), fat:Number((food.fat * factor).toFixed(1)), fiber:Number((food.fiber * factor).toFixed(1)), source:food.barcode ? "manualBarcodeOrOpenFoodFacts" : "manualFood", barcode:food.barcode || "" };
+  return { date:qs("#nutrition-date")?.value || todayISO(), meal:mealValue || "snack", name:food.name, referenceType:"per100", quantity:n(quantity), unit:"g", servingName:"portion", servingWeight:null, baseCalories:food.calories, baseProtein:food.protein, baseCarbs:food.carbs, baseFat:food.fat, baseFiber:food.fiber, favorite:false, calories:Math.round(food.calories * factor), protein:Number((food.protein * factor).toFixed(1)), carbs:Number((food.carbs * factor).toFixed(1)), fat:Number((food.fat * factor).toFixed(1)), fiber:Number((food.fiber * factor).toFixed(1)), source:food.simple ? "simpleFood" : (food.barcode ? "manualBarcodeOrOpenFoodFacts" : "manualFood"), barcode:food.barcode || "" };
 }
 async function addEntry(entry){
   if(fb && user){
