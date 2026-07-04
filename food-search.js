@@ -27,7 +27,7 @@ function toast(msg){
 }
 function notifyNutrition(entry){
   window.dispatchEvent(new CustomEvent("fitflow:nutrition-entry-added", { detail:{ entry } }));
-  window.dispatchEvent(new Event("focus"));
+  window.dispatchEvent(new CustomEvent("fitflow:nutrition-data-changed", { detail:{ source:"food-search", light:true } }));
 }
 
 async function fetchJsonWithRetry(url, tries = 3){
@@ -177,8 +177,16 @@ function buildEntry(food, quantity, mealValue){
   return { date:qs("#nutrition-date")?.value || todayISO(), meal:mealValue || "snack", name:food.name, referenceType:"per100", quantity:n(quantity), unit:"g", servingName:"portion", servingWeight:null, baseCalories:food.calories, baseProtein:food.protein, baseCarbs:food.carbs, baseFat:food.fat, baseFiber:food.fiber, favorite:false, calories:Math.round(food.calories * factor), protein:Number((food.protein * factor).toFixed(1)), carbs:Number((food.carbs * factor).toFixed(1)), fat:Number((food.fat * factor).toFixed(1)), fiber:Number((food.fiber * factor).toFixed(1)), source:food.barcode ? "manualBarcodeOrOpenFoodFacts" : "manualFood", barcode:food.barcode || "" };
 }
 async function addEntry(entry){
-  if(fb && user) await addDoc(collection(fb.db, "users", user.uid, "nutritionEntries"), { ...entry, createdAt:serverTimestamp() });
-  else { const arr = JSON.parse(localStorage.getItem(key("nutritionEntries")) || "[]"); arr.unshift({ ...entry, id:crypto.randomUUID?.() || String(Date.now()) }); localStorage.setItem(key("nutritionEntries"), JSON.stringify(arr)); }
+  if(fb && user){
+    const docRef = await addDoc(collection(fb.db, "users", user.uid, "nutritionEntries"), { ...entry, createdAt:serverTimestamp() });
+    entry.id = docRef.id;
+    return entry;
+  }
+  const arr = JSON.parse(localStorage.getItem(key("nutritionEntries")) || "[]");
+  const localEntry = { ...entry, id:crypto.randomUUID?.() || String(Date.now()) };
+  arr.unshift(localEntry);
+  localStorage.setItem(key("nutritionEntries"), JSON.stringify(arr));
+  return localEntry;
 }
 async function addSelectedFood(e){
   e.preventDefault();
@@ -191,11 +199,11 @@ async function addSelectedFood(e){
   const btn = form.querySelector("button[type='submit']");
   const old = btn.textContent; btn.disabled = true; btn.textContent = "Ajout…";
   try{
-    await addEntry(entry);
+    const savedEntry = await addEntry(entry);
     qs("#food-add-modal")?.classList.remove("active");
     qs("#food-search-modal")?.classList.remove("active");
     toast("Aliment ajouté ✅");
-    notifyNutrition(entry);
+    notifyNutrition(savedEntry || entry);
   }catch(err){ console.warn(err); toast("Erreur pendant l’ajout"); }
   finally{ btn.disabled = false; btn.textContent = old; }
 }
