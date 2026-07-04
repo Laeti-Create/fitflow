@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v41-simple-food-search";
+const CACHE_NAME = "fitflow-cache-v42-simple-foods-base";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -21,6 +21,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/edit-meal-templates.js",
   "/fitflow/dashboard-day-summary.js",
   "/fitflow/food-search.js",
+  "/fitflow/simple-foods.js",
   "/fitflow/nutrition-pickers.js",
   "/fitflow/nutrition-live-updates.js",
   "/fitflow/barcode-scanner.js",
