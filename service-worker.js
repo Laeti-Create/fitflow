@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v35-food-id-date-tools";
+const CACHE_NAME = "fitflow-cache-v36-nutrition-performance";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
