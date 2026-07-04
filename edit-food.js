@@ -8,6 +8,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const MEALS = ["breakfast", "lunch", "dinner", "snack"];
 let user = null;
 let editingIndex = null;
+let editingId = null;
 let editingEntry = null;
 let cachedEntries = [];
 let cacheAt = 0;
@@ -56,6 +57,14 @@ async function loadEntry(index){
   if(cached) return cached;
   const entries = await loadEntries(true);
   return entries[index] || null;
+}
+
+async function loadEntryById(id){
+  if(!id) return null;
+  const cached = cachedEntries.find((entry) => entry.id === id);
+  if(cached) return cached;
+  const entries = await loadEntries(true);
+  return entries.find((entry) => entry.id === id) || null;
 }
 
 function calc(raw){
@@ -174,9 +183,10 @@ function fillLoading(){
   f.elements.baseFiber.value = 0;
 }
 
-async function openEdit(index){
+async function openEdit(index, id = ""){
   const token = ++openingToken;
-  editingIndex = index;
+  editingIndex = Number.isFinite(index) ? index : null;
+  editingId = id || null;
   editingEntry = null;
   const o = modal();
   fillLoading();
@@ -185,7 +195,7 @@ async function openEdit(index){
   o.classList.add("active");
 
   try{
-    const entry = await loadEntry(index);
+    const entry = editingId ? await loadEntryById(editingId) : await loadEntry(editingIndex);
     if(token !== openingToken) return;
     if(!entry){
       toast("Aliment introuvable");
@@ -193,6 +203,7 @@ async function openEdit(index){
       return;
     }
     editingEntry = entry;
+    editingId = entry.id || editingId;
     fill(entry);
     setFormDisabled(false);
     qs("#edit-food-status").textContent = "Ajuste les champs puis enregistre.";
@@ -219,10 +230,14 @@ async function saveEdit(e){
       await updateDoc(doc(fb.db, "users", user.uid, "nutritionEntries", editingEntry.id), update);
     }else{
       const entries = localEntries();
-      entries[editingIndex] = { ...entries[editingIndex], ...update, updatedAt:new Date().toISOString() };
+      const localIndex = editingId ? entries.findIndex((entry) => entry.id === editingId) : editingIndex;
+      if(localIndex < 0 || !entries[localIndex]) throw new Error("Local entry not found");
+      entries[localIndex] = { ...entries[localIndex], ...update, updatedAt:new Date().toISOString() };
       saveLocalEntries(entries);
+      editingIndex = localIndex;
     }
-    cachedEntries[editingIndex] = { ...editingEntry, ...update };
+    const cacheIndex = editingId ? cachedEntries.findIndex((entry) => entry.id === editingId) : editingIndex;
+    if(cacheIndex >= 0) cachedEntries[cacheIndex] = { ...cachedEntries[cacheIndex], ...update };
     qs("#edit-food-modal")?.classList.remove("active");
     toast("Aliment modifié ✅");
     refresh();
@@ -239,7 +254,7 @@ function bind(){
     const b = e.target.closest(".edit-food");
     if(!b) return;
     e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-    openEdit(Number(b.dataset.index));
+    openEdit(Number(b.dataset.index), b.dataset.id || b.dataset.entryId || "");
   }, true);
   window.addEventListener("focus", () => { if(user) loadEntries(false).catch(()=>{}); });
   window.addEventListener("fitflow:nutrition-data-changed", () => { cachedEntries = []; cacheAt = 0; });
