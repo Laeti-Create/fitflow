@@ -1,4 +1,5 @@
 import { firebaseConfig } from "./firebase-config.js";
+import { SIMPLE_FOODS } from "./simple-foods.js";
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
@@ -15,10 +16,6 @@ const fb = (() => {
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   return { auth:getAuth(app), db:getFirestore(app) };
 })();
-
-const SIMPLE_FOODS = [
-  { keywords:["myrtille", "myrtilles", "blueberry", "blueberries"], name:"Myrtilles fraîches", brand:"· Aliment simple", calories:57, protein:0.7, carbs:14.5, fat:0.3, fiber:2.4, barcode:"", simple:true }
-];
 
 function key(name){ return `fitflow:${user?.uid || "demo"}:${name}`; }
 function n(v){ return Number(v || 0); }
@@ -37,7 +34,7 @@ function notifyNutrition(entry){
 function simpleFoodsForSearch(queryText){
   const q = normalizeText(queryText);
   if(!q) return [];
-  return SIMPLE_FOODS.filter((food) => food.keywords.some((keyword) => q === normalizeText(keyword) || q.includes(normalizeText(keyword))));
+  return SIMPLE_FOODS.filter((food) => food.keywords.some((keyword) => q === normalizeText(keyword) || q.includes(normalizeText(keyword)) || normalizeText(keyword).includes(q)));
 }
 function scoreFood(food, queryText){
   const q = normalizeText(queryText);
