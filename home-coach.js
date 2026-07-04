@@ -38,6 +38,10 @@ function setupFirebase() {
 
 const firebase = setupFirebase();
 
+function loadBarcodeScannerModule(){
+  import("./barcode-scanner.js").catch((error) => console.warn("Scanner code-barres non chargé :", error));
+}
+
 function currentSeasonConfig() {
   const month = new Date().getMonth() + 1;
 
@@ -318,6 +322,7 @@ async function refreshCoach(user) {
 }
 
 function initHomeCoach() {
+  loadBarcodeScannerModule();
   injectWalkIllustration();
   applyMessage(deterministicPick(fallbackMessages));
 
