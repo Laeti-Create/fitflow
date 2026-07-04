@@ -8,6 +8,10 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 let user = null;
 let targets = { calories:1650, protein:127, fiber:25, waterMl:2000 };
 let bound = false;
+let renderTimer = null;
+let entriesCache = null;
+let entriesCacheAt = 0;
+let targetsCacheAt = 0;
 
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v) => String(v).includes("REMPLACE_MOI"));
 const fb = (() => {
@@ -21,6 +25,7 @@ function localKey(name){ return `fitflow:${user?.uid || "demo"}:${name}`; }
 function n(v){ return Number(v || 0); }
 function fmt(v, d = 0){ return Number(v || 0).toLocaleString("fr-FR", { maximumFractionDigits:d, minimumFractionDigits:d }); }
 function liters(ml){ return `${fmt(n(ml) / 1000, 2)} L`; }
+function invalidateCache(){ entriesCache = null; entriesCacheAt = 0; }
 
 function lastSevenDates(endDate){
   const end = new Date(`${endDate}T12:00:00`);
@@ -31,7 +36,8 @@ function lastSevenDates(endDate){
   });
 }
 
-async function loadTargets(){
+async function loadTargets(force = false){
+  if(!force && targetsCacheAt && Date.now() - targetsCacheAt < 60000) return;
   try{
     if(fb && user){
       const snap = await getDoc(doc(fb.db, "users", user.uid, "profile", "main"));
@@ -41,15 +47,20 @@ async function loadTargets(){
       targets.fiber = n(p.fiberTarget) || 25;
       targets.waterMl = Math.round((n(p.waterTarget) || 2) * 1000);
     }
+    targetsCacheAt = Date.now();
   }catch(e){ console.warn("Objectifs tendance non chargés", e); }
 }
 
-async function loadNutritionEntries(){
+async function loadNutritionEntries(force = false){
+  if(!force && entriesCache && Date.now() - entriesCacheAt < 10000) return entriesCache;
   if(fb && user){
     const snap = await getDocs(query(collection(fb.db, "users", user.uid, "nutritionEntries"), orderBy("date", "desc")));
-    return snap.docs.map((d) => ({ id:d.id, ...d.data() }));
+    entriesCache = snap.docs.map((d) => ({ id:d.id, ...d.data() }));
+  }else{
+    entriesCache = JSON.parse(localStorage.getItem(localKey("nutritionEntries")) || "[]");
   }
-  return JSON.parse(localStorage.getItem(localKey("nutritionEntries")) || "[]");
+  entriesCacheAt = Date.now();
+  return entriesCache;
 }
 
 async function loadWaterMap(dates){
@@ -87,11 +98,11 @@ function metric(label, value, sub){
   return `<div class="weekly-metric"><strong>${value}</strong><span>${label}${sub ? ` · ${sub}` : ""}</span></div>`;
 }
 
-async function render(){
+async function render(force = false){
   if(!ensureCard()) return;
-  await loadTargets();
+  await loadTargets(force);
   const dates = lastSevenDates(dateValue());
-  const entries = await loadNutritionEntries();
+  const entries = await loadNutritionEntries(force);
   const water = await loadWaterMap(dates);
   const byDay = Object.fromEntries(dates.map((d) => [d, { calories:0, protein:0, fiber:0, water:water[d] || 0 }]));
 
@@ -125,15 +136,22 @@ async function render(){
   qs("#weekly-note").textContent = note;
 }
 
+function requestRender(delay = 1200, force = false){
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(() => render(force), delay);
+}
+
 function bind(){
   if(bound) return; bound = true;
-  qs("#nutrition-date")?.addEventListener("change", render);
-  window.addEventListener("focus", () => setTimeout(render, 300));
+  qs("#nutrition-date")?.addEventListener("change", () => requestRender(350, true));
+  window.addEventListener("focus", () => requestRender(900));
+  window.addEventListener("fitflow:nutrition-entry-added", () => { invalidateCache(); requestRender(1800, true); });
+  window.addEventListener("fitflow:nutrition-data-changed", () => { invalidateCache(); requestRender(1800, true); });
 }
 
 function init(){
-  try{ ensureCard(); bind(); render(); setTimeout(render, 900); }catch(e){ console.warn("Tendance 7 jours désactivée", e); }
+  try{ ensureCard(); bind(); render(); setTimeout(() => render(), 1200); }catch(e){ console.warn("Tendance 7 jours désactivée", e); }
 }
 
-if(fb){ onAuthStateChanged(fb.auth, async (u) => { user = u; await render(); }); } else { user = { uid:"demo" }; }
+if(fb){ onAuthStateChanged(fb.auth, async (u) => { user = u; invalidateCache(); await render(true); }); } else { user = { uid:"demo" }; }
 if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
