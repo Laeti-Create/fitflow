@@ -38,9 +38,14 @@ function displayQuantity(entry){
   const unit = entry.unit || "g";
   return `${fmt(q, q % 1 ? 1 : 0)} ${unit}`;
 }
+function actionsHtml(entry){
+  if(!entry.id) return `<span class="mini-action">Ajouté</span>`;
+  const id = esc(entry.id);
+  return `<button class="mini-action edit-food" data-id="${id}" data-entry-id="${id}">Modifier</button><button class="mini-action favorite-food" data-id="${id}" data-entry-id="${id}">Favori</button><button class="mini-action danger delete-food" data-id="${id}" data-entry-id="${id}">Supprimer</button>`;
+}
 function foodHtml(entry, key){
   const idAttrs = entry.id ? ` data-entry-id="${esc(entry.id)}"` : "";
-  return `<div class="nutrition-food-item live-added-food" data-live-key="${esc(key)}"${idAttrs}><div><strong>${esc(entry.name)}</strong><small>${displayQuantity(entry)} · ${fmtInt(entry.calories)} kcal · P ${fmt(entry.protein)} · G ${fmt(entry.carbs)} · L ${fmt(entry.fat)} · F ${fmt(entry.fiber)}</small></div><div class="card-actions"><span class="mini-action">Ajouté</span></div></div>`;
+  return `<div class="nutrition-food-item live-added-food" data-live-key="${esc(key)}"${idAttrs}><div><strong>${esc(entry.name)}</strong><small>${displayQuantity(entry)} · ${fmtInt(entry.calories)} kcal · P ${fmt(entry.protein)} · G ${fmt(entry.carbs)} · L ${fmt(entry.fat)} · F ${fmt(entry.fiber)}</small></div><div class="card-actions">${actionsHtml(entry)}</div></div>`;
 }
 function findMealCard(meal){
   const label = MEAL_LABELS[meal] || MEAL_LABELS.snack;
@@ -61,8 +66,7 @@ function updateMacroRow(field, increment){
   const current = parseNumber(parts[0]);
   const target = parseNumber(parts[1]);
   const next = current + Number(increment || 0);
-  const unit = field === "calories" ? "kcal" : "g";
-  span.textContent = `${fmt(next, 1)} / ${fmt(target, 0)} ${unit}`;
+  span.textContent = `${fmt(next, 1)} / ${fmt(target, 0)} g`;
   updateProgress(row, next, target);
 }
 function updateMacros(entry){
