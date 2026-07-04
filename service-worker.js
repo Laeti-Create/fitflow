@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v33-edit-food-fix";
+const CACHE_NAME = "fitflow-cache-v34-food-id-date-tools";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -12,6 +12,8 @@ const ASSETS_TO_CACHE = [
   "/fitflow/home-coach.js",
   "/fitflow/nutrition-enhancements.js",
   "/fitflow/meal-templates.js",
+  "/fitflow/nutrition-date-tools.js",
+  "/fitflow/nutrition-id-actions.js",
   "/fitflow/edit-food.js",
   "/fitflow/water-tracker.js",
   "/fitflow/weekly-trends.js",
@@ -41,6 +43,8 @@ async function enhanceIndexResponse(response) {
   const scripts = [
     "nutrition-enhancements.js",
     "meal-templates.js",
+    "nutrition-date-tools.js",
+    "nutrition-id-actions.js",
     "edit-food.js",
     "water-tracker.js",
     "weekly-trends.js",
