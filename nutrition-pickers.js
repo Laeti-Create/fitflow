@@ -30,8 +30,7 @@ function toast(msg){
   t.textContent=msg; t.classList.add("active"); clearTimeout(toast.id); toast.id=setTimeout(()=>t.classList.remove("active"),2200);
 }
 function refresh(){
-  window.dispatchEvent(new CustomEvent("fitflow:nutrition-data-changed"));
-  window.dispatchEvent(new Event("focus"));
+  window.dispatchEvent(new CustomEvent("fitflow:nutrition-data-changed", { detail:{ source:"nutrition-pickers", light:true } }));
 }
 function requestCompact(delay=160){ clearTimeout(compactTimer); compactTimer=setTimeout(compactCards,delay); }
 
@@ -54,10 +53,16 @@ async function loadTemplates(){
   return readLocal("mealTemplates");
 }
 async function addEntry(entry){
-  if(fb && user){ await addDoc(collection(fb.db,"users",user.uid,"nutritionEntries"), {...entry, createdAt:serverTimestamp()}); return; }
+  if(fb && user){
+    const docRef = await addDoc(collection(fb.db,"users",user.uid,"nutritionEntries"), {...entry, createdAt:serverTimestamp()});
+    entry.id = docRef.id;
+    return entry;
+  }
   const entries = readLocal("nutritionEntries");
-  entries.unshift({...entry, id:crypto.randomUUID?.() || String(Date.now())});
+  const localEntry = {...entry, id:crypto.randomUUID?.() || String(Date.now())};
+  entries.unshift(localEntry);
   saveLocal("nutritionEntries", entries);
+  return localEntry;
 }
 function calcFavoriteEntry(fav, meal){
   const referenceType = fav.referenceType || "per100";
@@ -144,12 +149,12 @@ async function submitPicker(e){
   try{
     const added=[];
     if(type==="favorites"){
-      for(const fav of selected){ const entry=calcFavoriteEntry(fav, meal); await addEntry(entry); added.push(entry); }
+      for(const fav of selected){ const entry=calcFavoriteEntry(fav, meal); const saved=await addEntry(entry); added.push(saved || entry); }
     }else{
       for(const tpl of selected){
         for(const item of tpl.items || []){
           const entry={date:date(), meal, name:item.name, referenceType:"templateItem", quantity:1, unit:"portion", servingName:"portion", servingWeight:null, baseCalories:n(item.calories), baseProtein:n(item.protein), baseCarbs:n(item.carbs), baseFat:n(item.fat), baseFiber:n(item.fiber), calories:n(item.calories), protein:n(item.protein), carbs:n(item.carbs), fat:n(item.fat), fiber:n(item.fiber), favorite:false, source:"mealTemplatePicker", templateName:tpl.name};
-          await addEntry(entry); added.push(entry);
+          const saved=await addEntry(entry); added.push(saved || entry);
         }
       }
     }
