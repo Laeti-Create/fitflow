@@ -8,6 +8,8 @@ let user = null;
 let cachedEntries = [];
 let cacheAt = 0;
 let stampTimer = null;
+let initialized = false;
+let observerStarted = false;
 
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v) => String(v).includes("REMPLACE_MOI"));
 const fb = (() => {
@@ -165,13 +167,22 @@ async function handleClick(event){
 }
 
 function init(){
+  cachedEntries = [];
+  cacheAt = 0;
   requestStamp(300, true);
+  if(initialized) return;
+  initialized = true;
+
   document.addEventListener("click", handleClick, true);
   window.addEventListener("focus", () => requestStamp(250));
   window.addEventListener("fitflow:nutrition-data-changed", () => requestStamp(250, true));
   window.addEventListener("fitflow:nutrition-entry-added", () => requestStamp(450, true));
+
   const root = qs("#view-nutrition");
-  if(root) new MutationObserver(() => requestStamp(220)).observe(root, { childList:true, subtree:true });
+  if(root && !observerStarted){
+    observerStarted = true;
+    new MutationObserver(() => requestStamp(220)).observe(root, { childList:true, subtree:true });
+  }
 }
 
 if(fb){
