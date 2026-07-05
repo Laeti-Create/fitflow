@@ -13,44 +13,44 @@ function fmt(value){
   return Math.round(Number(value || 0)).toLocaleString("fr-FR");
 }
 
+function setText(el, text){
+  if(el && el.textContent !== text) el.textContent = text;
+}
+
 function adjustNutritionBudget(){
   const nutritionView = qs("#view-nutrition");
   if(!nutritionView) return;
 
+  const targetEl = qs("#nutrition-target");
   const consumed = parseIntText("#nutrition-consumed");
-  const baseTarget = Number(qs("#nutrition-target")?.dataset.baseTarget || parseIntText("#nutrition-target") || 1650);
+  const currentTargetText = parseIntText("#nutrition-target") || 1650;
+  const baseTarget = Number(targetEl?.dataset.baseTarget || currentTargetText || 1650);
   const fitflowActivity = parseIntText("#nutrition-activity");
   const adjustedTarget = baseTarget + Math.max(0, fitflowActivity);
   const left = adjustedTarget - consumed;
 
-  const targetEl = qs("#nutrition-target");
   if(targetEl){
     if(!targetEl.dataset.baseTarget) targetEl.dataset.baseTarget = String(baseTarget);
-    targetEl.textContent = fmt(adjustedTarget);
+    setText(targetEl, fmt(adjustedTarget));
   }
 
-  const leftEl = qs("#nutrition-left");
-  if(leftEl){
-    leftEl.textContent = `${left >= 0 ? "Restant ajusté" : "Dépassé ajusté"} : ${fmt(Math.abs(left))} kcal`;
-  }
+  setText(qs("#nutrition-left"), `${left >= 0 ? "Restant ajusté" : "Dépassé ajusté"} : ${fmt(Math.abs(left))} kcal`);
 
   const progress = qs("#nutrition-calorie-progress");
   if(progress){
-    progress.style.width = `${clamp((consumed / Math.max(1, adjustedTarget)) * 100, 0, 100)}%`;
+    const width = `${clamp((consumed / Math.max(1, adjustedTarget)) * 100, 0, 100)}%`;
+    if(progress.style.width !== width) progress.style.width = width;
   }
 
-  const hero = qs(".nutrition-hero .calorie-big span:last-child");
-  if(hero && !hero.dataset.adjustedLabel){
-    hero.dataset.adjustedLabel = "true";
-    const note = document.createElement("small");
+  let note = qs("#adjusted-calorie-note");
+  const noteText = `Objectif ajusté = ${fmt(baseTarget)} kcal + activités FitFlow`;
+  if(!note){
+    note = document.createElement("small");
     note.id = "adjusted-calorie-note";
     note.className = "adjusted-calorie-note";
-    note.textContent = `Objectif ajusté = ${fmt(baseTarget)} kcal + activités FitFlow`;
     qs(".nutrition-hero")?.appendChild(note);
-  }else{
-    const note = qs("#adjusted-calorie-note");
-    if(note) note.textContent = `Objectif ajusté = ${fmt(baseTarget)} kcal + activités FitFlow`;
   }
+  setText(note, noteText);
 }
 
 let scheduled = false;
