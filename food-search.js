@@ -34,7 +34,13 @@ function notifyNutrition(entry){
 function simpleFoodsForSearch(queryText){
   const q = normalizeText(queryText);
   if(!q) return [];
-  return SIMPLE_FOODS.filter((food) => food.keywords.some((keyword) => q === normalizeText(keyword) || q.includes(normalizeText(keyword)) || normalizeText(keyword).includes(q)));
+  return SIMPLE_FOODS.filter((food) => {
+    const name = normalizeText(food.name);
+    return name.includes(q) || food.keywords.some((keyword) => {
+      const k = normalizeText(keyword);
+      return q === k || q.includes(k) || k.includes(q);
+    });
+  });
 }
 function scoreFood(food, queryText){
   const q = normalizeText(queryText);
@@ -46,7 +52,7 @@ function scoreFood(food, queryText){
   if(name.startsWith(q)) score += 260;
   if(name.includes(q)) score += 160;
   if(brand.includes(q)) score += 30;
-  if(/muesli|barre|confiture|yaourt|kefir|sable|fourre|cereale|dessert/.test(name)) score -= 60;
+  if(/muesli|barre|confiture|yaourt|kefir|sable|fourre|cereale|dessert|intense|delicate|passion/.test(name)) score -= 80;
   return score;
 }
 function rankFoods(foods, queryText){
@@ -59,6 +65,10 @@ function rankFoods(foods, queryText){
       return true;
     })
     .sort((a,b) => scoreFood(b, queryText) - scoreFood(a, queryText));
+}
+function setResultFoods(box, foods){
+  box.dataset.foods = JSON.stringify(foods);
+  box.innerHTML = foods.length ? foods.map(resultHtml).join("") : `<p class="empty-template">Aucun produit exploitable trouvé.</p>`;
 }
 
 async function fetchJsonWithRetry(url, tries = 3){
@@ -95,7 +105,7 @@ function ensureCard(){
   card = document.createElement("article");
   card.id = "food-search-card";
   card.className = "nutrition-card food-search-card picker-compact-card";
-  card.innerHTML = `<div class="picker-compact-head"><div><h3>Recherche aliment 🔎</h3><small>Recherche par nom ou code-barres via Open Food Facts.</small></div><button id="open-food-search-modal" class="mini-action" type="button">Ouvrir</button></div>`;
+  card.innerHTML = `<div class="picker-compact-head"><div><h3>Recherche aliment 🔎</h3><small>Aliments simples en priorité, produits emballés via Open Food Facts ensuite.</small></div><button id="open-food-search-modal" class="mini-action" type="button">Ouvrir</button></div>`;
   macro.insertAdjacentElement("afterend", card);
   card.querySelector("#open-food-search-modal").addEventListener("click", openSearchModal);
   return card;
@@ -107,7 +117,7 @@ function ensureSearchModal(){
   o = document.createElement("div");
   o.id = "food-search-modal";
   o.className = "nutrition-modal-overlay";
-  o.innerHTML = `<section class="nutrition-modal food-search-modal" role="dialog" aria-modal="true"><div class="nutrition-modal-head"><div><h3>Recherche aliment 🔎</h3><p>Recherche par nom ou code-barres, puis ajoute au repas.</p></div><button class="nutrition-modal-close" type="button">×</button></div><div class="food-search-form"><input id="food-search-text" type="search" placeholder="Ex : skyr, pain complet, barre protéinée…" /><button id="food-search-btn" class="mini-action" type="button">Rechercher</button></div><div class="food-search-form"><input id="food-barcode-text" type="text" inputmode="numeric" placeholder="Code-barres" /><button id="food-barcode-btn" class="mini-action" type="button">Code</button></div><div id="food-search-results" class="food-search-results"></div></section>`;
+  o.innerHTML = `<section class="nutrition-modal food-search-modal" role="dialog" aria-modal="true"><div class="nutrition-modal-head"><div><h3>Recherche aliment 🔎</h3><p>FitFlow cherche d’abord dans tes aliments simples, puis dans Open Food Facts.</p></div><button class="nutrition-modal-close" type="button">×</button></div><div class="food-search-form"><input id="food-search-text" type="search" placeholder="Ex : framboise, pomme de terre, poulet…" /><button id="food-search-btn" class="mini-action" type="button">Rechercher</button></div><div class="food-search-form"><input id="food-barcode-text" type="text" inputmode="numeric" placeholder="Code-barres" /><button id="food-barcode-btn" class="mini-action" type="button">Code</button></div><div id="food-search-results" class="food-search-results"></div></section>`;
   document.body.appendChild(o);
   o.querySelector(".nutrition-modal-close").addEventListener("click", () => o.classList.remove("active"));
   o.addEventListener("click", (e) => { if(e.target === o) o.classList.remove("active"); });
@@ -134,20 +144,30 @@ async function searchByText(){
   if(!q){ toast("Tape un aliment à rechercher"); return; }
   const box = qs("#food-search-results");
   const btn = qs("#food-search-btn");
-  box.innerHTML = `<p class="empty-template">Recherche en cours… FitFlow relance automatiquement si besoin.</p>`;
+  const simpleFoods = simpleFoodsForSearch(q);
+
+  if(simpleFoods.length){
+    setResultFoods(box, simpleFoods);
+    box.insertAdjacentHTML("beforeend", `<p class="empty-template">Recherche des produits emballés en complément…</p>`);
+  }else{
+    box.innerHTML = `<p class="empty-template">Aucun aliment simple trouvé. Recherche Open Food Facts en cours…</p>`;
+  }
+
   btn.disabled = true;
   try{
     const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12&fields=code,product_name,product_name_fr,generic_name,generic_name_fr,brands,nutriments`;
-    const data = await fetchJsonWithRetry(url, 3);
+    const data = await fetchJsonWithRetry(url, 2);
     const openFoodFacts = (data.products || []).map(toFood).filter((f) => f.calories || f.protein || f.carbs || f.fat);
-    const foods = rankFoods([...simpleFoodsForSearch(q), ...openFoodFacts], q);
-    box.dataset.foods = JSON.stringify(foods);
-    box.innerHTML = foods.length ? foods.map(resultHtml).join("") : `<p class="empty-template">Aucun produit exploitable trouvé. Essaie un nom plus simple, par exemple “skyr”.</p>`;
+    const foods = rankFoods([...simpleFoods, ...openFoodFacts], q);
+    setResultFoods(box, foods);
   }catch(e){
     console.warn(e);
-    const simpleFoods = simpleFoodsForSearch(q);
-    box.dataset.foods = JSON.stringify(simpleFoods);
-    box.innerHTML = simpleFoods.length ? simpleFoods.map(resultHtml).join("") : `<p class="empty-template">Open Food Facts ne répond pas pour le moment. Réessaie ou ajoute l’aliment manuellement.</p>`;
+    if(simpleFoods.length){
+      setResultFoods(box, simpleFoods);
+    }else{
+      box.dataset.foods = "[]";
+      box.innerHTML = `<p class="empty-template">Open Food Facts ne répond pas pour le moment. Essaie un aliment simple ou ajoute manuellement.</p>`;
+    }
   }finally{ btn.disabled = false; }
 }
 async function searchByBarcode(){
