@@ -7,6 +7,7 @@ let statusEl = null;
 let zxingControls = null;
 let nativeStream = null;
 let nativeLoop = 0;
+let noDetectionTimer = 0;
 let scannerRunning = false;
 let scriptLoading = null;
 let observerStarted = false;
@@ -76,7 +77,7 @@ function ensureOverlay(){
         <button class="mini-action" id="barcode-stop" type="button">Arrêter</button>
         <button class="mini-action" id="barcode-manual" type="button">Saisie manuelle</button>
       </div>
-      <p class="barcode-help">Astuce : approche doucement le téléphone, puis stabilise le code-barres dans le cadre.</p>
+      <p class="barcode-help">Astuce : mets le code-barres bien à plat, avec assez de lumière, puis rapproche/éloigne doucement le téléphone.</p>
     </section>`;
   document.body.appendChild(overlay);
 
@@ -110,11 +111,17 @@ function loadZxing(){
 function stopTracks(){
   if(nativeLoop) cancelAnimationFrame(nativeLoop);
   nativeLoop = 0;
+  clearTimeout(noDetectionTimer);
+  noDetectionTimer = 0;
   if(zxingControls?.stop) zxingControls.stop();
   zxingControls = null;
   if(nativeStream){
     nativeStream.getTracks().forEach((track) => track.stop());
     nativeStream = null;
+  }
+  const stream = video?.srcObject;
+  if(stream?.getTracks){
+    stream.getTracks().forEach((track) => track.stop());
   }
   if(video){
     try{ video.pause(); }catch(e){}
@@ -147,6 +154,64 @@ function searchDetectedCode(code){
   setTimeout(() => button?.click(), 150);
 }
 
+async function applyVideoTrackTweaks(){
+  try{
+    const track = video?.srcObject?.getVideoTracks?.()[0];
+    if(!track?.applyConstraints) return;
+    const capabilities = track.getCapabilities?.() || {};
+    const advanced = [];
+    if(capabilities.focusMode?.includes?.("continuous")) advanced.push({ focusMode:"continuous" });
+    if(capabilities.exposureMode?.includes?.("continuous")) advanced.push({ exposureMode:"continuous" });
+    if(capabilities.zoom){
+      const min = Number(capabilities.zoom.min || 1);
+      const max = Number(capabilities.zoom.max || min);
+      const zoom = Math.min(max, Math.max(min, 1.4));
+      advanced.push({ zoom });
+    }
+    if(advanced.length) await track.applyConstraints({ advanced });
+  }catch(error){
+    console.warn("Réglages caméra non appliqués", error);
+  }
+}
+
+function startNoDetectionHint(){
+  clearTimeout(noDetectionTimer);
+  noDetectionTimer = setTimeout(() => {
+    if(scannerRunning){
+      setStatus("Je ne lis pas encore le code. Essaie de l’éloigner un peu, de le mettre bien horizontal et avec plus de lumière.");
+    }
+  }, 6500);
+}
+
+async function startNativeDetectorOnVideo(){
+  if(!("BarcodeDetector" in window)) return false;
+  let detector;
+  try{
+    detector = new BarcodeDetector({ formats:["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"] });
+  }catch(error){
+    console.warn("BarcodeDetector indisponible", error);
+    return false;
+  }
+
+  const loop = async () => {
+    if(!scannerRunning || !video) return;
+    try{
+      if(video.readyState >= 2){
+        const codes = await detector.detect(video);
+        if(codes?.length){
+          searchDetectedCode(codes[0].rawValue || codes[0].rawData || "");
+          return;
+        }
+      }
+    }catch(error){
+      // Certains Safari refusent parfois une frame. On continue simplement la boucle.
+    }
+    nativeLoop = requestAnimationFrame(loop);
+  };
+  nativeLoop = requestAnimationFrame(loop);
+  return true;
+}
+
 async function startZxingScan(){
   const ZXingBrowser = await loadZxing();
   const Reader = ZXingBrowser.BrowserMultiFormatReader || ZXingBrowser.BrowserMultiFormatOneDReader;
@@ -155,8 +220,8 @@ async function startZxingScan(){
   const constraints = {
     video: {
       facingMode: { ideal:"environment" },
-      width: { ideal:1280 },
-      height: { ideal:720 }
+      width: { ideal:1920 },
+      height: { ideal:1080 }
     },
     audio:false
   };
@@ -165,27 +230,17 @@ async function startZxingScan(){
     const text = result.getText?.() || result.text || String(result || "");
     searchDetectedCode(text);
   });
+  await applyVideoTrackTweaks();
+  await startNativeDetectorOnVideo();
 }
 
 async function startNativeScan(){
   if(!("BarcodeDetector" in window)) throw new Error("BarcodeDetector non disponible");
-  const detector = new BarcodeDetector({ formats:["ean_13", "ean_8", "upc_a", "upc_e", "code_128"] });
-  nativeStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" }, width:{ ideal:1280 }, height:{ ideal:720 } }, audio:false });
+  nativeStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false });
   video.srcObject = nativeStream;
   await video.play();
-
-  const loop = async () => {
-    if(!scannerRunning) return;
-    try{
-      const codes = await detector.detect(video);
-      if(codes?.length){
-        searchDetectedCode(codes[0].rawValue || codes[0].rawData || "");
-        return;
-      }
-    }catch(e){}
-    nativeLoop = requestAnimationFrame(loop);
-  };
-  nativeLoop = requestAnimationFrame(loop);
+  await applyVideoTrackTweaks();
+  await startNativeDetectorOnVideo();
 }
 
 async function openScanner(){
@@ -203,11 +258,13 @@ async function openScanner(){
     setStatus("Ouverture de la caméra…");
     await startZxingScan();
     setStatus("Caméra active. Place le code-barres dans le cadre.");
+    startNoDetectionHint();
   }catch(zxingError){
     console.warn("ZXing scanner indisponible", zxingError);
     try{
       await startNativeScan();
       setStatus("Caméra active. Place le code-barres dans le cadre.");
+      startNoDetectionHint();
     }catch(nativeError){
       console.warn("Scanner natif indisponible", nativeError);
       stopTracks();
