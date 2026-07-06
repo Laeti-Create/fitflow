@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v43-search-net-budget";
+const CACHE_NAME = "fitflow-cache-v44-barcode-detection-fix";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -42,8 +42,7 @@ function shouldEnhanceIndex(request) {
 
 async function enhanceIndexResponse(response) {
   let html = await response.text();
-
-  html = html.replace(/\n\s*<article class="coach-card">\s*<button class="close-card">×<\/button>\s*<strong>Message du coach<\/strong>\s*<p>Régularité \+ patience = transformation\. Tu es sur la bonne voie 💪<\/p>\s*<\/article>/, "");
+  html = html.replace(/\n\s*<article class="coach-card">[\s\S]*?<strong>Message du coach<\/strong>[\s\S]*?<\/article>/, "");
 
   const scripts = [
     "nutrition-enhancements.js",
