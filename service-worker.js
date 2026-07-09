@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v46-exact-food-actions";
+const CACHE_NAME = "fitflow-cache-v47-running-plan";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -7,6 +7,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/nutrition.css",
   "/fitflow/home-coach.css",
   "/fitflow/nutrition-enhancements.css",
+  "/fitflow/running-plan.css",
   "/fitflow/app.js",
   "/fitflow/nutrition.js",
   "/fitflow/home-coach.js",
@@ -28,6 +29,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/nutrition-add-menu.js",
   "/fitflow/barcode-scanner.js",
   "/fitflow/running.js",
+  "/fitflow/running-plan.js",
   "/fitflow/running-integration.js",
   "/fitflow/firebase-config.js",
   "/fitflow/manifest.json",
@@ -62,12 +64,16 @@ async function enhanceIndexResponse(response) {
     "nutrition-add-menu.js",
     "barcode-scanner.js",
     "running.js",
+    "running-plan.js",
     "running-integration.js"
   ];
 
-  if (!html.includes("nutrition-enhancements.css")) {
-    html = html.replace("</head>", '<link rel="stylesheet" href="nutrition-enhancements.css" /></head>');
-  }
+  const styles = ["nutrition-enhancements.css", "running-plan.css"];
+  styles.forEach((style) => {
+    if (!html.includes(style)) {
+      html = html.replace("</head>", `<link rel="stylesheet" href="${style}" /></head>`);
+    }
+  });
 
   scripts.forEach((script) => {
     if (!html.includes(script)) {
