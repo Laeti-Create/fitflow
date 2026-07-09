@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v44-barcode-detection-fix";
+const CACHE_NAME = "fitflow-cache-v45-nutrition-add-menu";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -25,6 +25,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/nutrition-pickers.js",
   "/fitflow/nutrition-live-updates.js",
   "/fitflow/nutrition-net-budget.js",
+  "/fitflow/nutrition-add-menu.js",
   "/fitflow/barcode-scanner.js",
   "/fitflow/running.js",
   "/fitflow/running-integration.js",
@@ -58,6 +59,7 @@ async function enhanceIndexResponse(response) {
     "nutrition-pickers.js",
     "nutrition-live-updates.js",
     "nutrition-net-budget.js",
+    "nutrition-add-menu.js",
     "barcode-scanner.js",
     "running.js",
     "running-integration.js"
