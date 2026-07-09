@@ -11,6 +11,13 @@ let stampTimer = null;
 let initialized = false;
 let observerStarted = false;
 
+const MEAL_BY_LABEL = {
+  "Petit-déjeuner":"breakfast",
+  "Déjeuner":"lunch",
+  "Dîner":"dinner",
+  "Collation":"snack"
+};
+
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v) => String(v).includes("REMPLACE_MOI"));
 const fb = (() => {
   if(!ready()) return null;
@@ -21,6 +28,7 @@ const fb = (() => {
 function key(name){ return `fitflow:${user?.uid || "demo"}:${name}`; }
 function readLocal(name){ return JSON.parse(localStorage.getItem(key(name)) || "[]"); }
 function saveLocal(name, value){ localStorage.setItem(key(name), JSON.stringify(value)); }
+function selectedDate(){ return qs("#nutrition-date")?.value || new Date().toISOString().slice(0,10); }
 function toast(message){
   let t = qs("#nutrition-save-toast");
   if(!t){ t = document.createElement("div"); t.id = "nutrition-save-toast"; t.className = "nutrition-toast"; document.body.appendChild(t); }
@@ -29,16 +37,14 @@ function toast(message){
   clearTimeout(toast.id);
   toast.id = setTimeout(() => t.classList.remove("active"), 2200);
 }
-function refresh(){
+function notifyChanged(source = "nutrition-id-actions"){
   cachedEntries = [];
   cacheAt = 0;
-  window.dispatchEvent(new CustomEvent("fitflow:nutrition-data-changed"));
-  window.dispatchEvent(new Event("focus"));
-  setTimeout(() => window.dispatchEvent(new Event("focus")), 350);
+  window.dispatchEvent(new CustomEvent("fitflow:nutrition-data-changed", { detail:{ source, light:true } }));
 }
 
 async function loadEntries(force = false){
-  if(!force && cachedEntries.length && Date.now() - cacheAt < 10000) return cachedEntries;
+  if(!force && cachedEntries.length && Date.now() - cacheAt < 5000) return cachedEntries;
   if(fb && user){
     const snap = await getDocs(query(collection(fb.db, "users", user.uid, "nutritionEntries"), orderBy("date", "desc")));
     cachedEntries = snap.docs.map((d) => ({ id:d.id, ...d.data() }));
@@ -101,33 +107,70 @@ async function deleteEntryById(id){
   saveLocal("nutritionEntries", readLocal("nutritionEntries").filter((entry) => entry.id !== id));
 }
 
-function stampButton(button, entry){
-  if(!button || !entry?.id) return;
-  button.dataset.id = entry.id;
-  button.dataset.entryId = entry.id;
-  button.closest(".nutrition-food-item")?.setAttribute("data-entry-id", entry.id);
+function normalize(value){
+  return String(value || "").trim().toLocaleLowerCase("fr-FR");
+}
+
+function mealForItem(item){
+  const label = item.closest(".nutrition-meal-card")?.querySelector(".meal-head strong")?.textContent?.trim();
+  return MEAL_BY_LABEL[label] || "";
+}
+
+function stampItem(item, entry){
+  if(!item || !entry?.id) return;
+  item.dataset.entryId = entry.id;
+  item.querySelectorAll(".edit-food, .favorite-food, .delete-food").forEach((button) => {
+    button.dataset.id = entry.id;
+    button.dataset.entryId = entry.id;
+    button.dataset.entryName = entry.name || "";
+  });
 }
 
 async function stampActionIds(force = false){
-  const buttons = [...document.querySelectorAll(".edit-food, .favorite-food, .delete-food")]
-    .filter((button) => force || !button.dataset.id || !button.dataset.entryId);
-  if(!buttons.length) return;
+  const items = [...document.querySelectorAll("#view-nutrition .nutrition-food-item")];
+  if(!items.length) return;
 
   try{
-    const entries = await loadEntries(force);
-    buttons.forEach((button) => {
-      const index = Number(button.dataset.index);
-      if(!Number.isFinite(index)) return;
-      stampButton(button, entries[index]);
+    const entries = (await loadEntries(force)).filter((entry) => entry.date === selectedDate());
+    const usedIds = new Set();
+
+    items.forEach((item) => {
+      if(!force && item.dataset.entryId) {
+        usedIds.add(item.dataset.entryId);
+        return;
+      }
+
+      const displayedName = normalize(item.querySelector("strong")?.textContent);
+      const meal = mealForItem(item);
+      const match = entries.find((entry) =>
+        entry.id &&
+        !usedIds.has(entry.id) &&
+        entry.meal === meal &&
+        normalize(entry.name) === displayedName
+      );
+
+      if(match){
+        usedIds.add(match.id);
+        stampItem(item, match);
+      }
     });
   }catch(error){
     console.warn("IDs aliments non synchronisés", error);
   }
 }
 
-function requestStamp(delay = 120, force = false){
+function requestStamp(delay = 80, force = false){
   clearTimeout(stampTimer);
   stampTimer = setTimeout(() => stampActionIds(force), delay);
+}
+
+function updateMealCardAfterRemoval(item){
+  const card = item?.closest(".nutrition-meal-card");
+  item?.remove();
+  const list = card?.querySelector(".nutrition-food-list");
+  if(list && !list.querySelector(".nutrition-food-item")){
+    list.innerHTML = `<p class="empty-meal">Aucun aliment pour le moment.</p>`;
+  }
 }
 
 async function handleClick(event){
@@ -136,13 +179,17 @@ async function handleClick(event){
   const button = favoriteButton || deleteButton;
   if(!button) return;
 
-  if(!button.dataset.id && !button.dataset.entryId) await stampActionIds(false);
-  const id = button.dataset.id || button.dataset.entryId;
-  if(!id) return;
-
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
+
+  if(!button.dataset.entryId && !button.dataset.id) await stampActionIds(true);
+  const id = button.dataset.entryId || button.dataset.id;
+  if(!id){
+    toast("Aliment non synchronisé. Réessaie dans une seconde.");
+    requestStamp(50, true);
+    return;
+  }
 
   try{
     const entry = await loadEntryById(id);
@@ -151,17 +198,22 @@ async function handleClick(event){
     if(favoriteButton){
       await addFavoriteByEntry(entry);
       toast(`"${entry.name}" ajouté aux favoris ⭐`);
+      notifyChanged("favorite-added");
+      return;
     }
 
     if(deleteButton){
       if(!confirm(`Supprimer "${entry.name}" ?`)) return;
+      button.disabled = true;
       await deleteEntryById(id);
+      updateMealCardAfterRemoval(button.closest(".nutrition-food-item"));
       toast("Aliment supprimé ✅");
+      notifyChanged("food-deleted");
+      setTimeout(() => requestStamp(80, true), 180);
     }
-
-    refresh();
   }catch(error){
     console.warn("Action aliment par ID échouée", error);
+    button.disabled = false;
     toast("Action impossible pour le moment");
   }
 }
@@ -169,19 +221,22 @@ async function handleClick(event){
 function init(){
   cachedEntries = [];
   cacheAt = 0;
-  requestStamp(300, true);
+  requestStamp(200, true);
   if(initialized) return;
   initialized = true;
 
   document.addEventListener("click", handleClick, true);
-  window.addEventListener("focus", () => requestStamp(250));
-  window.addEventListener("fitflow:nutrition-data-changed", () => requestStamp(250, true));
-  window.addEventListener("fitflow:nutrition-entry-added", () => requestStamp(450, true));
+  window.addEventListener("focus", () => requestStamp(160, true));
+  window.addEventListener("fitflow:nutrition-data-changed", () => requestStamp(140, true));
+  window.addEventListener("fitflow:nutrition-entry-added", () => requestStamp(180, true));
+  document.addEventListener("change", (event) => {
+    if(event.target?.id === "nutrition-date") requestStamp(120, true);
+  });
 
   const root = qs("#view-nutrition");
   if(root && !observerStarted){
     observerStarted = true;
-    new MutationObserver(() => requestStamp(220)).observe(root, { childList:true, subtree:true });
+    new MutationObserver(() => requestStamp(100, true)).observe(root, { childList:true, subtree:true });
   }
 }
 
