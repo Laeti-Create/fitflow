@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v48b-running-plan-link";
+const CACHE_NAME = "fitflow-cache-v49-guided-running";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -8,6 +8,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/home-coach.css",
   "/fitflow/nutrition-enhancements.css",
   "/fitflow/running-plan.css",
+  "/fitflow/running-guided.css",
   "/fitflow/app.js",
   "/fitflow/nutrition.js",
   "/fitflow/home-coach.js",
@@ -31,6 +32,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/running.js",
   "/fitflow/running-plan.js",
   "/fitflow/running-plan-link.js",
+  "/fitflow/running-guided.js",
   "/fitflow/running-integration.js",
   "/fitflow/firebase-config.js",
   "/fitflow/manifest.json",
@@ -67,10 +69,11 @@ async function enhanceIndexResponse(response) {
     "running.js",
     "running-plan.js",
     "running-plan-link.js",
+    "running-guided.js",
     "running-integration.js"
   ];
 
-  const styles = ["nutrition-enhancements.css", "running-plan.css"];
+  const styles = ["nutrition-enhancements.css", "running-plan.css", "running-guided.css"];
   styles.forEach((style) => {
     if (!html.includes(style)) {
       html = html.replace("</head>", `<link rel="stylesheet" href="${style}" /></head>`);
