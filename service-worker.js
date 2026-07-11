@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v47-running-plan";
+const CACHE_NAME = "fitflow-cache-v48-running-plan-link";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -30,6 +30,7 @@ const ASSETS_TO_CACHE = [
   "/fitflow/barcode-scanner.js",
   "/fitflow/running.js",
   "/fitflow/running-plan.js",
+  "/fitflow/running-plan-link.js",
   "/fitflow/running-integration.js",
   "/fitflow/firebase-config.js",
   "/fitflow/manifest.json",
@@ -65,6 +66,7 @@ async function enhanceIndexResponse(response) {
     "barcode-scanner.js",
     "running.js",
     "running-plan.js",
+    "running-plan-link.js",
     "running-integration.js"
   ];
 
