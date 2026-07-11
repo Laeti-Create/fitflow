@@ -102,6 +102,26 @@ function ensurePlanSelect(){
   setTimeout(suggest,100);
 }
 
+function updateVisiblePlan(sessionId){
+  const card = document.querySelector(`[data-plan-session="${sessionId}"]`);
+  if(card){
+    card.classList.remove("status-planned","status-postponed");
+    card.classList.add("status-completed");
+    const status = card.querySelector(".run-plan-status");
+    if(status) status.innerHTML = `✅<small>Réalisée</small>`;
+  }
+
+  const statuses = readLocal(`runningPlanSessions:${PLAN_ID}`);
+  const completed = SESSIONS.filter((session)=>statuses[session.id]?.status === "completed").length;
+  const percent = Math.round((completed / SESSIONS.length) * 100);
+  const progressStrong = qs(".run-plan-progress-head strong");
+  const progressPercent = qs(".run-plan-progress-head span");
+  const progressBar = qs(".run-plan-progress span");
+  if(progressStrong) progressStrong.textContent = `${completed} / ${SESSIONS.length} séances réalisées`;
+  if(progressPercent) progressPercent.textContent = `${percent}%`;
+  if(progressBar) progressBar.style.width = `${percent}%`;
+}
+
 async function markLinkedSession(run){
   if(!run?.planSessionId) return;
   const session = SESSIONS.find((item)=>item.id === run.planSessionId);
@@ -133,9 +153,9 @@ async function markLinkedSession(run){
 
   const existingIndex = runs.findIndex((item)=>item.id === run.id);
   if(existingIndex >= 0) runs[existingIndex] = run; else runs.unshift(run);
+  updateVisiblePlan(session.id);
   toast("Séance du programme validée automatiquement ✅");
   window.dispatchEvent(new CustomEvent("fitflow:running-plan-updated",{detail:{sessionId:session.id,run}}));
-  setTimeout(()=>window.dispatchEvent(new Event("focus")),180);
 }
 
 function comparisonHtml(sessionId){
@@ -146,7 +166,8 @@ function comparisonHtml(sessionId){
 
 function enhanceOpenDetail(){
   const detail = qs("#running-plan-detail");
-  if(!detail || !selectedSessionId || detail.querySelector(".run-plan-comparison")) return;
+  if(!detail || !selectedSessionId) return;
+  detail.querySelector(".run-plan-comparison")?.remove();
   const actions = detail.querySelector(".run-detail-actions");
   actions?.insertAdjacentHTML("beforebegin",comparisonHtml(selectedSessionId));
 }
@@ -168,6 +189,7 @@ function bind(){
     if(!run) return;
     await markLinkedSession(run);
     ensurePlanSelect();
+    setTimeout(enhanceOpenDetail,100);
   });
   window.addEventListener("fitflow:runs-loaded",(event)=>{
     runs=Array.isArray(event.detail?.runs)?event.detail.runs:runs;
