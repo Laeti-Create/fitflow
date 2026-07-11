@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v48-running-plan-link";
+const CACHE_NAME = "fitflow-cache-v48b-running-plan-link";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
