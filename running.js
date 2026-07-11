@@ -10,6 +10,21 @@ let user = null;
 let runs = [];
 let profile = {};
 
+const PLAN_SESSION_LABELS = {
+  "w1-quality":"S1 · VMA courte",
+  "w1-easy":"S1 · Endurance fondamentale",
+  "w1-long":"S1 · Sortie longue",
+  "w2-quality":"S2 · Seuil",
+  "w2-easy":"S2 · Endurance fondamentale",
+  "w2-long":"S2 · Sortie longue progressive",
+  "w3-quality":"S3 · VMA courte",
+  "w3-easy":"S3 · Endurance fondamentale",
+  "w3-long":"S3 · Sortie longue",
+  "w4-quality":"S4 · Seuil",
+  "w4-easy":"S4 · Endurance fondamentale",
+  "w4-long":"S4 · Assimilation"
+};
+
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v)=>String(v).includes("REMPLACE_MOI"));
 const fb = (() => {
   if(!ready()) return null;
@@ -52,6 +67,7 @@ async function loadRuns(){
     }else runs = readLocal("runs");
   }catch(e){ console.warn("Courses non chargées", e); runs = readLocal("runs"); }
   renderRuns();
+  window.dispatchEvent(new CustomEvent("fitflow:runs-loaded", { detail:{ runs:runs.slice() } }));
 }
 
 function currentWeight(){
@@ -122,6 +138,7 @@ function navigateRun(view){
   const active = qs(`.bottom-nav [data-run-nav='${view}']`) || qs(`.bottom-nav [data-nav='${view}']`);
   active?.classList.add("active");
   if(view === "run") renderRuns();
+  if(view === "run-form") window.dispatchEvent(new CustomEvent("fitflow:run-form-opened"));
 }
 
 async function saveRun(e){
@@ -131,13 +148,34 @@ async function saveRun(e){
   const distance = n(raw.distance);
   const duration = n(raw.duration);
   const computed = calcRun(distance, duration, raw.manualCalories);
-  const run = { date:raw.date, distance, duration, manualCalories:n(raw.manualCalories)||null, type:raw.type || "easy", effort:n(raw.effort)||7, comment:raw.comment || "", ...computed };
+  const run = {
+    date:raw.date,
+    distance,
+    duration,
+    manualCalories:n(raw.manualCalories)||null,
+    type:raw.type || "easy",
+    effort:n(raw.effort)||7,
+    comment:raw.comment || "",
+    planId:raw.planSessionId ? "10k-sub60-block1-2026" : null,
+    planSessionId:raw.planSessionId || null,
+    ...computed
+  };
   try{
+    let savedRun;
     if(fb && user){
       const ref = await addDoc(collection(fb.db,"users",user.uid,"runs"), {...run, createdAt:serverTimestamp()});
-      runs = [{...run,id:ref.id}, ...runs];
-    }else{ runs = [{...run,id:crypto.randomUUID?.() || String(Date.now())}, ...runs]; saveLocal("runs", runs); }
-    form.reset(); form.elements.date.value = todayISO(); toast("Sortie course enregistrée ✅"); navigateRun("run");
+      savedRun = {...run,id:ref.id};
+      runs = [savedRun, ...runs];
+    }else{
+      savedRun = {...run,id:crypto.randomUUID?.() || String(Date.now())};
+      runs = [savedRun, ...runs];
+      saveLocal("runs", runs);
+    }
+    window.dispatchEvent(new CustomEvent("fitflow:run-saved", { detail:{ run:savedRun } }));
+    form.reset();
+    form.elements.date.value = todayISO();
+    toast(run.planSessionId ? "Sortie enregistrée et séance liée ✅" : "Sortie course enregistrée ✅");
+    navigateRun("run");
   }catch(err){ console.warn(err); toast("Erreur pendant l’enregistrement"); }
 }
 
@@ -146,7 +184,10 @@ async function deleteRun(index){
   if(!run || !confirm("Supprimer cette sortie course ?")) return;
   try{
     if(fb && user && run.id) await deleteDoc(doc(fb.db,"users",user.uid,"runs",run.id));
-    runs.splice(index,1); if(!fb || !user) saveLocal("runs", runs); renderRuns();
+    runs.splice(index,1);
+    if(!fb || !user) saveLocal("runs", runs);
+    renderRuns();
+    window.dispatchEvent(new CustomEvent("fitflow:run-deleted", { detail:{ run } }));
   }catch(err){ console.warn(err); toast("Suppression impossible"); }
 }
 
@@ -161,7 +202,10 @@ function renderRuns(){
   const totalCalories = sorted.reduce((s,r)=>s+n(r.calories),0);
   qs("#run-total-distance") && (qs("#run-total-distance").textContent = `${fmt(totalDistance,1)} km`);
   qs("#run-total-calories") && (qs("#run-total-calories").textContent = fmtInt(totalCalories));
-  list.innerHTML = sorted.length ? sorted.map((run,i)=>`<article class="history-card"><div class="avatar">🏃‍♀️</div><div><strong>${fmtDate(run.date)}</strong><small>${fmt(run.distance,2)} km • ${run.duration} min • ${formatPace(run.pace)} • ${fmtInt(run.calories)} kcal</small><div class="card-actions"><button class="mini-action danger delete-run" data-index="${i}">Supprimer</button></div></div><div class="right">${typeLabel(run.type)}<span>Ressenti ${run.effort}/10${run.manualCalories ? " · Watch" : " · calcul"}</span></div></article>`).join("") : `<article class="empty-template">Aucune sortie course pour le moment. Ajoute ta première reprise demain 🏃‍♀️</article>`;
+  list.innerHTML = sorted.length ? sorted.map((run,i)=>{
+    const planBadge = run.planSessionId ? `<span class="run-plan-linked-badge">🔗 ${esc(PLAN_SESSION_LABELS[run.planSessionId] || "Séance du programme")}</span>` : "";
+    return `<article class="history-card"><div class="avatar">🏃‍♀️</div><div><strong>${fmtDate(run.date)}</strong><small>${fmt(run.distance,2)} km • ${run.duration} min • ${formatPace(run.pace)} • ${fmtInt(run.calories)} kcal</small>${planBadge}<div class="card-actions"><button class="mini-action danger delete-run" data-index="${i}">Supprimer</button></div></div><div class="right">${typeLabel(run.type)}<span>Ressenti ${run.effort}/10${run.manualCalories ? " · Watch" : " · calcul"}</span></div></article>`;
+  }).join("") : `<article class="empty-template">Aucune sortie course pour le moment. Ajoute ta première reprise demain 🏃‍♀️</article>`;
 }
 
 function bind(){
