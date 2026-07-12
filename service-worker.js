@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitflow-cache-v49-guided-running";
+const CACHE_NAME = "fitflow-cache-v50-meal-template-builder";
 
 const ASSETS_TO_CACHE = [
   "/fitflow/",
@@ -9,11 +9,13 @@ const ASSETS_TO_CACHE = [
   "/fitflow/nutrition-enhancements.css",
   "/fitflow/running-plan.css",
   "/fitflow/running-guided.css",
+  "/fitflow/meal-template-builder-v2.css",
   "/fitflow/app.js",
   "/fitflow/nutrition.js",
   "/fitflow/home-coach.js",
   "/fitflow/nutrition-enhancements.js",
   "/fitflow/meal-templates.js",
+  "/fitflow/meal-template-builder-v2.js",
   "/fitflow/nutrition-date-tools.js",
   "/fitflow/nutrition-id-actions.js",
   "/fitflow/edit-food.js",
@@ -53,6 +55,7 @@ async function enhanceIndexResponse(response) {
   const scripts = [
     "nutrition-enhancements.js",
     "meal-templates.js",
+    "meal-template-builder-v2.js",
     "nutrition-date-tools.js",
     "nutrition-id-actions.js",
     "edit-food.js",
@@ -73,7 +76,7 @@ async function enhanceIndexResponse(response) {
     "running-integration.js"
   ];
 
-  const styles = ["nutrition-enhancements.css", "running-plan.css", "running-guided.css"];
+  const styles = ["nutrition-enhancements.css", "running-plan.css", "running-guided.css", "meal-template-builder-v2.css"];
   styles.forEach((style) => {
     if (!html.includes(style)) {
       html = html.replace("</head>", `<link rel="stylesheet" href="${style}" /></head>`);
