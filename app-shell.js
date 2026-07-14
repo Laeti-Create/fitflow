@@ -1,4 +1,4 @@
-const FITFLOW_VERSION = "0.51.0-develop.4";
+const FITFLOW_VERSION = "0.51.0-develop.5";
 const BUILD_CHANNEL = "develop";
 
 const STYLES = [
@@ -9,6 +9,7 @@ const STYLES = [
 ];
 
 const MODULES = [
+  "auth-recovery.js",
   "nutrition-enhancements.js",
   "meal-templates.js",
   "meal-template-builder-v2.js",
