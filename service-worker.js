@@ -1,5 +1,5 @@
-const CACHE_NAME = "fitflow-cache-v51-app-shell-3";
-const APP_SHELL_VERSION = "0.51.0-develop.3";
+const CACHE_NAME = "fitflow-cache-v51-app-shell-4";
+const APP_SHELL_VERSION = "0.51.0-develop.4";
 
 const CORE_ASSETS = [
   "/fitflow/",
@@ -60,7 +60,7 @@ async function withAppShell(response) {
   html = html.replace(/\n\s*<article class="coach-card">[\s\S]*?<strong>Message du coach<\/strong>[\s\S]*?<\/article>/, "");
 
   if (!html.includes("app-shell.css")) {
-    html = html.replace("</head>", '<link rel="stylesheet" href="app-shell.css" /></head>');
+    html = html.replace("</head>", `<link rel="stylesheet" href="app-shell.css?v=${APP_SHELL_VERSION}" /></head>`);
   }
   if (!html.includes("app-shell.js")) {
     html = html.replace("</body>", `<script type="module" src="app-shell.js?v=${APP_SHELL_VERSION}"></script></body>`);
@@ -110,7 +110,6 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll([...CORE_ASSETS, ...FEATURE_ASSETS]))
-      .then(() => self.skipWaiting())
   );
 });
 
