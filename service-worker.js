@@ -1,5 +1,5 @@
-const CACHE_NAME = "fitflow-cache-v51-app-shell";
-const APP_SHELL_VERSION = "0.51.0-develop";
+const CACHE_NAME = "fitflow-cache-v51-app-shell-2";
+const APP_SHELL_VERSION = "0.51.0-develop.2";
 
 const CORE_ASSETS = [
   "/fitflow/",
