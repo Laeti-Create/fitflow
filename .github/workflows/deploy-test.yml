@@ -1,0 +1,89 @@
+name: Deploy FitFlow test
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: fitflow-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout stable main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: stable
+
+      - name: Checkout develop test
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          path: test
+
+      - name: Assemble stable and test site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/test
+
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            stable/ public/
+
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            test/ public/test/
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          test_root = Path('public/test')
+
+          manifest = test_root / 'manifest.json'
+          text = manifest.read_text(encoding='utf-8')
+          text = text.replace('"name": "FitFlow"', '"name": "FitFlow Test"')
+          text = text.replace('"short_name": "FitFlow"', '"short_name": "FitFlow Test"')
+          text = text.replace('"start_url": "/fitflow/"', '"start_url": "/fitflow/test/"')
+          text = text.replace('"scope": "/fitflow/"', '"scope": "/fitflow/test/"')
+          manifest.write_text(text, encoding='utf-8')
+
+          service_worker = test_root / 'service-worker.js'
+          text = service_worker.read_text(encoding='utf-8')
+          text = text.replace('fitflow-cache-v51-app-shell', 'fitflow-cache-v51-app-shell-test')
+          text = text.replace('/fitflow/', '/fitflow/test/')
+          service_worker.write_text(text, encoding='utf-8')
+          PY
+
+          touch public/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}test/
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
