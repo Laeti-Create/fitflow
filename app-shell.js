@@ -1,4 +1,4 @@
-const FITFLOW_VERSION = "0.51.0-develop";
+const FITFLOW_VERSION = "0.51.0-develop.1";
 const BUILD_CHANNEL = "develop";
 
 const STYLES = [
