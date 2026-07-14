@@ -1,4 +1,4 @@
-const FITFLOW_VERSION = "0.51.0-develop.1";
+const FITFLOW_VERSION = "0.51.0-develop.4";
 const BUILD_CHANNEL = "develop";
 
 const STYLES = [
@@ -42,14 +42,15 @@ function loadStyle(path) {
   if (document.querySelector(`link[href="${path}"]`)) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = path;
+  link.href = `${path}?v=${FITFLOW_VERSION}`;
   document.head.appendChild(link);
 }
 
 async function loadModules() {
   for (const path of MODULES) {
     try {
-      await import(`./${path}`);
+      const separator = path.includes("?") ? "&" : "?";
+      await import(`./${path}${separator}appv=${FITFLOW_VERSION}`);
     } catch (error) {
       console.error(`FitFlow : module non chargé (${path})`, error);
       window.dispatchEvent(new CustomEvent("fitflow:module-error", {
@@ -79,18 +80,24 @@ function createUpdateBanner() {
 }
 
 async function activateWaitingWorker(registration) {
-  if (!registration?.waiting) return;
+  if (!registration?.waiting) return false;
+  const button = qs("#fitflow-update-now");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Mise à jour…";
+  }
   registration.waiting.postMessage({ type: "SKIP_WAITING" });
+  return true;
 }
 
 async function setupUpdateFlow() {
   if (!("serviceWorker" in navigator)) return;
   const banner = createUpdateBanner();
-  let refreshing = false;
+  let reloading = false;
 
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (refreshing) return;
-    refreshing = true;
+    if (reloading) return;
+    reloading = true;
     window.location.reload();
   });
 
@@ -98,10 +105,15 @@ async function setupUpdateFlow() {
   if (!registration) return;
 
   const showUpdate = () => {
-    if (!registration.waiting) return;
+    if (!registration.waiting) return false;
     banner.hidden = false;
     const button = qs("#fitflow-update-now");
-    if (button) button.onclick = () => activateWaitingWorker(registration);
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Mettre à jour";
+      button.onclick = () => activateWaitingWorker(registration);
+    }
+    return true;
   };
 
   showUpdate();
@@ -115,8 +127,8 @@ async function setupUpdateFlow() {
 
   window.fitflowCheckForUpdates = async () => {
     await registration.update();
-    showUpdate();
-    return Boolean(registration.waiting);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return showUpdate();
   };
 }
 
@@ -210,7 +222,7 @@ function injectSettingsCards() {
   qs("#fitflow-repair-cache")?.addEventListener("click", repairAppCache);
   qs("#fitflow-check-update")?.addEventListener("click", async () => {
     const found = await window.fitflowCheckForUpdates?.();
-    showShellToast(found ? "Mise à jour prête" : "FitFlow est à jour ✅");
+    showShellToast(found ? "Mise à jour prête — utilise la bannière en haut" : "FitFlow est à jour ✅");
   });
 
   window.addEventListener("online", updateNetworkState);
