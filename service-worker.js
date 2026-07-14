@@ -1,58 +1,68 @@
-const CACHE_NAME = "fitflow-cache-v51-app-shell-4";
-const APP_SHELL_VERSION = "0.51.0-develop.4";
+const APP_SHELL_VERSION = "0.51.0-develop.5";
+const SCOPE_URL = new URL(self.registration.scope);
+const BASE_PATH = SCOPE_URL.pathname.endsWith("/") ? SCOPE_URL.pathname : `${SCOPE_URL.pathname}/`;
+const CACHE_SCOPE = BASE_PATH.replace(/^\/+|\/+$/g, "").replaceAll("/", "-") || "root";
+const CACHE_NAME = `fitflow-cache-${CACHE_SCOPE}-${APP_SHELL_VERSION}`;
 
-const CORE_ASSETS = [
-  "/fitflow/",
-  "/fitflow/index.html",
-  "/fitflow/styles.css",
-  "/fitflow/nutrition.css",
-  "/fitflow/home-coach.css",
-  "/fitflow/app-shell.css",
-  "/fitflow/app.js",
-  "/fitflow/home-coach.js",
-  "/fitflow/nutrition.js",
-  "/fitflow/app-shell.js",
-  "/fitflow/firebase-config.js",
-  "/fitflow/manifest.json",
-  "/fitflow/icon.svg",
-  "/fitflow/icon-192.png",
-  "/fitflow/icon-512.png"
+const CORE_FILES = [
+  "",
+  "index.html",
+  "styles.css",
+  "nutrition.css",
+  "home-coach.css",
+  "app-shell.css",
+  "app.js",
+  "home-coach.js",
+  "nutrition.js",
+  "app-shell.js",
+  "auth-recovery.js",
+  "firebase-config.js",
+  "manifest.json",
+  "icon.svg",
+  "icon-192.png",
+  "icon-512.png"
 ];
 
-const FEATURE_ASSETS = [
-  "/fitflow/nutrition-enhancements.css",
-  "/fitflow/running-plan.css",
-  "/fitflow/running-guided.css",
-  "/fitflow/meal-template-builder-v2.css",
-  "/fitflow/nutrition-enhancements.js",
-  "/fitflow/meal-templates.js",
-  "/fitflow/meal-template-builder-v2.js",
-  "/fitflow/nutrition-date-tools.js",
-  "/fitflow/nutrition-id-actions.js",
-  "/fitflow/edit-food.js",
-  "/fitflow/water-tracker.js",
-  "/fitflow/weekly-trends.js",
-  "/fitflow/nutrition-layout.js",
-  "/fitflow/edit-meal-templates.js",
-  "/fitflow/dashboard-day-summary.js",
-  "/fitflow/food-search.js",
-  "/fitflow/simple-foods.js",
-  "/fitflow/nutrition-pickers.js",
-  "/fitflow/nutrition-live-updates.js",
-  "/fitflow/nutrition-net-budget.js",
-  "/fitflow/nutrition-add-menu.js",
-  "/fitflow/barcode-scanner.js",
-  "/fitflow/running.js",
-  "/fitflow/running-plan.js",
-  "/fitflow/running-plan-link.js",
-  "/fitflow/running-guided.js",
-  "/fitflow/running-integration.js"
+const FEATURE_FILES = [
+  "nutrition-enhancements.css",
+  "running-plan.css",
+  "running-guided.css",
+  "meal-template-builder-v2.css",
+  "nutrition-enhancements.js",
+  "meal-templates.js",
+  "meal-template-builder-v2.js",
+  "nutrition-date-tools.js",
+  "nutrition-id-actions.js",
+  "edit-food.js",
+  "water-tracker.js",
+  "weekly-trends.js",
+  "nutrition-layout.js",
+  "edit-meal-templates.js",
+  "dashboard-day-summary.js",
+  "food-search.js",
+  "simple-foods.js",
+  "nutrition-pickers.js",
+  "nutrition-live-updates.js",
+  "nutrition-net-budget.js",
+  "nutrition-add-menu.js",
+  "barcode-scanner.js",
+  "running.js",
+  "running-plan.js",
+  "running-plan-link.js",
+  "running-guided.js",
+  "running-integration.js"
 ];
+
+const toScopedPath = (file) => new URL(file, self.registration.scope).pathname;
+const CORE_ASSETS = CORE_FILES.map(toScopedPath);
+const FEATURE_ASSETS = FEATURE_FILES.map(toScopedPath);
+const INDEX_PATH = toScopedPath("index.html");
+const ROOT_PATH = toScopedPath("");
 
 function isAppNavigation(request) {
   if (request.mode === "navigate") return true;
   const url = new URL(request.url);
-  return url.origin === self.location.origin && (url.pathname === "/fitflow/" || url.pathname.endsWith("/fitflow/index.html"));
+  return url.origin === self.location.origin && (url.pathname === ROOT_PATH || url.pathname === INDEX_PATH);
 }
 
 async function withAppShell(response) {
@@ -78,11 +88,11 @@ async function networkFirstNavigation(request) {
     const response = await fetch(request, { cache: "no-store" });
     if (response.ok) {
       const cache = await caches.open(CACHE_NAME);
-      await cache.put("/fitflow/index.html", response.clone());
+      await cache.put(INDEX_PATH, response.clone());
     }
     return withAppShell(response);
   } catch {
-    const cached = await caches.match("/fitflow/index.html") || await caches.match("/fitflow/");
+    const cached = await caches.match(INDEX_PATH) || await caches.match(ROOT_PATH);
     if (cached) return withAppShell(cached);
     return new Response("FitFlow est momentanément indisponible hors ligne.", {
       status: 503,
@@ -93,7 +103,7 @@ async function networkFirstNavigation(request) {
 
 async function staleWhileRevalidate(request) {
   const cached = await caches.match(request);
-  const networkPromise = fetch(request)
+  const networkPromise = fetch(request, { cache: "no-cache" })
     .then(async (response) => {
       if (response.ok && new URL(request.url).origin === self.location.origin) {
         const cache = await caches.open(CACHE_NAME);
@@ -116,7 +126,11 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("fitflow-cache-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(
+        keys
+          .filter((key) => key.startsWith("fitflow-cache-") && key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      ))
       .then(() => self.clients.claim())
   );
 });
@@ -135,7 +149,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   const url = new URL(request.url);
-  if (url.origin === self.location.origin) {
+  if (url.origin === self.location.origin && url.pathname.startsWith(BASE_PATH)) {
     event.respondWith(staleWhileRevalidate(request));
   }
 });
