@@ -8,6 +8,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 let user = null;
 let compactTimer = null;
 let observerStarted = false;
+let initialized = false;
 
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v) => String(v).includes("REMPLACE_MOI"));
 const fb = (() => {
@@ -49,7 +50,12 @@ async function loadTemplates(){
       const snap = await getDocs(query(collection(fb.db,"users",user.uid,"mealTemplates"), orderBy("name","asc")));
       return snap.docs.map(d=>({id:d.id,...d.data()}));
     }
-  }catch(e){ console.warn("Repas types non chargés", e); }
+  }catch(e){
+    console.warn("Repas types non chargés", e);
+    const local = readLocal("mealTemplates");
+    if(local.length) return local;
+    throw e;
+  }
   return readLocal("mealTemplates");
 }
 async function addEntry(entry){
@@ -80,6 +86,28 @@ function calcFavoriteEntry(fav, meal){
 function templateTotals(items){
   return (items||[]).reduce((t,i)=>({calories:t.calories+n(i.calories),protein:t.protein+n(i.protein),carbs:t.carbs+n(i.carbs),fat:t.fat+n(i.fat),fiber:t.fiber+n(i.fiber)}),{calories:0,protein:0,carbs:0,fat:0,fiber:0});
 }
+
+function bindCompactButtons(card){
+  const favoriteButton = card?.querySelector("#open-favorites-picker");
+  if(favoriteButton && !favoriteButton.dataset.bound){
+    favoriteButton.dataset.bound = "1";
+    favoriteButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openFavorites(favoriteButton);
+    });
+  }
+  const templateButton = card?.querySelector("#open-templates-picker");
+  if(templateButton && !templateButton.dataset.bound){
+    templateButton.dataset.bound = "1";
+    templateButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openTemplates(templateButton);
+    });
+  }
+}
+
 function compactCards(){
   const favCard = qs("#nutrition-favorites-card");
   if(favCard && !favCard.dataset.pickerReady){
@@ -87,6 +115,8 @@ function compactCards(){
     favCard.classList.add("picker-compact-card");
     favCard.innerHTML = `<div class="picker-compact-head"><div><h3>Mes favoris ⭐</h3><small>Ouvre ta liste et sélectionne un ou plusieurs favoris.</small></div><button class="mini-action" id="open-favorites-picker" type="button">Ouvrir</button></div>`;
   }
+  bindCompactButtons(favCard);
+
   const tplCard = qs("#meal-templates-card");
   if(tplCard && !tplCard.dataset.pickerReady){
     const createBtn = tplCard.querySelector("#create-template-from-day")?.outerHTML || `<button class="mini-action" type="button" id="create-template-from-day">+ Créer</button>`;
@@ -94,13 +124,14 @@ function compactCards(){
     tplCard.classList.add("picker-compact-card");
     tplCard.innerHTML = `<div class="picker-compact-head"><div><h3>Mes repas types 🍱</h3><small>Ouvre ta liste et sélectionne un ou plusieurs repas types.</small></div><div class="picker-compact-actions">${createBtn}<button class="mini-action" id="open-templates-picker" type="button">Ouvrir</button></div></div>`;
   }
+  bindCompactButtons(tplCard);
   window.fitflowRequestNutritionLayout?.(120);
 }
 function startObserver(){
   const root=qs("#view-nutrition");
   if(!root || observerStarted) return;
   observerStarted=true;
-  new MutationObserver(()=>requestCompact(220)).observe(root,{childList:true,subtree:false});
+  new MutationObserver(()=>requestCompact(220)).observe(root,{childList:true,subtree:true});
 }
 function ensureOverlay(){
   let o = qs("#nutrition-picker-modal");
@@ -115,25 +146,52 @@ function ensureOverlay(){
   o.querySelector("#nutrition-picker-form").addEventListener("submit", submitPicker);
   return o;
 }
-async function openFavorites(){
-  const o=ensureOverlay();
-  const items=await loadFavorites();
-  o.dataset.type="favorites";
-  o.dataset.items=JSON.stringify(items);
-  qs("#picker-title").textContent="Ajouter des favoris ⭐";
-  qs("#picker-subtitle").textContent="Coche un ou plusieurs favoris à ajouter au jour.";
-  qs("#picker-list").innerHTML = items.length ? items.map((f,i)=>`<label class="picker-item"><input type="checkbox" name="pick" value="${i}"><span><strong>${esc(f.name)}</strong><small>${fmtInt(f.baseCalories)} kcal · P ${fmt(f.baseProtein)} · G ${fmt(f.baseCarbs)} · L ${fmt(f.baseFat)} · quantité par défaut ${fmt(f.defaultQuantity || 100,0)} ${esc(f.unit || "g")}</small></span></label>`).join("") : `<p class="empty-template">Aucun favori enregistré pour le moment.</p>`;
-  o.classList.add("active");
+function setButtonLoading(button, loading){
+  if(!button) return;
+  if(loading){
+    button.dataset.previousText = button.textContent;
+    button.textContent = "Chargement…";
+    button.disabled = true;
+  }else{
+    button.textContent = button.dataset.previousText || "Ouvrir";
+    button.disabled = false;
+  }
 }
-async function openTemplates(){
+async function openFavorites(button){
   const o=ensureOverlay();
-  const items=await loadTemplates();
-  o.dataset.type="templates";
-  o.dataset.items=JSON.stringify(items);
-  qs("#picker-title").textContent="Ajouter des repas types 🍱";
-  qs("#picker-subtitle").textContent="Coche un ou plusieurs repas types à ajouter au jour.";
-  qs("#picker-list").innerHTML = items.length ? items.map((t,i)=>{ const total=t.totals || templateTotals(t.items); return `<label class="picker-item"><input type="checkbox" name="pick" value="${i}"><span><strong>${esc(t.name)}</strong><small>${fmtInt(total.calories)} kcal · P ${fmt(total.protein)} · G ${fmt(total.carbs)} · L ${fmt(total.fat)} · ${(t.items||[]).length} aliment(s)</small></span></label>`; }).join("") : `<p class="empty-template">Aucun repas type enregistré pour le moment.</p>`;
-  o.classList.add("active");
+  setButtonLoading(button, true);
+  try{
+    const items=await loadFavorites();
+    o.dataset.type="favorites";
+    o.dataset.items=JSON.stringify(items);
+    qs("#picker-title").textContent="Ajouter des favoris ⭐";
+    qs("#picker-subtitle").textContent="Coche un ou plusieurs favoris à ajouter au jour.";
+    qs("#picker-list").innerHTML = items.length ? items.map((f,i)=>`<label class="picker-item"><input type="checkbox" name="pick" value="${i}"><span><strong>${esc(f.name)}</strong><small>${fmtInt(f.baseCalories)} kcal · P ${fmt(f.baseProtein)} · G ${fmt(f.baseCarbs)} · L ${fmt(f.baseFat)} · quantité par défaut ${fmt(f.defaultQuantity || 100,0)} ${esc(f.unit || "g")}</small></span></label>`).join("") : `<p class="empty-template">Aucun favori enregistré pour le moment.</p>`;
+    o.classList.add("active");
+  }catch(error){
+    console.warn(error);
+    toast("Impossible de charger les favoris");
+  }finally{
+    setButtonLoading(button, false);
+  }
+}
+async function openTemplates(button){
+  const o=ensureOverlay();
+  setButtonLoading(button, true);
+  try{
+    const items=await loadTemplates();
+    o.dataset.type="templates";
+    o.dataset.items=JSON.stringify(items);
+    qs("#picker-title").textContent="Ajouter des repas types 🍱";
+    qs("#picker-subtitle").textContent="Coche un ou plusieurs repas types à ajouter au jour.";
+    qs("#picker-list").innerHTML = items.length ? items.map((t,i)=>{ const total=t.totals || templateTotals(t.items); return `<label class="picker-item"><input type="checkbox" name="pick" value="${i}"><span><strong>${esc(t.name)}</strong><small>${fmtInt(total.calories)} kcal · P ${fmt(total.protein)} · G ${fmt(total.carbs)} · L ${fmt(total.fat)} · ${(t.items||[]).length} aliment(s)</small></span></label>`; }).join("") : `<p class="empty-template">Aucun repas type enregistré pour le moment.</p>`;
+    o.classList.add("active");
+  }catch(error){
+    console.warn(error);
+    toast("Impossible de charger les repas types");
+  }finally{
+    setButtonLoading(button, false);
+  }
 }
 async function submitPicker(e){
   e.preventDefault();
@@ -166,14 +224,22 @@ async function submitPicker(e){
 }
 function init(){
   compactCards();
-  setTimeout(()=>{ compactCards(); startObserver(); },800);
+  setTimeout(()=>{ compactCards(); startObserver(); },500);
+  setTimeout(compactCards,1400);
   window.addEventListener("focus",()=>requestCompact(180));
   window.addEventListener("fitflow:nutrition-data-changed",()=>requestCompact(180));
-  document.addEventListener("click",e=>{
-    if(e.target.closest("#open-favorites-picker")) openFavorites();
-    if(e.target.closest("#open-templates-picker")) openTemplates();
-  });
 }
 
-if(fb) onAuthStateChanged(fb.auth,u=>{ user=u; init(); }); else user={uid:"demo"};
-if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init();
+function start(){
+  if(initialized) return;
+  initialized = true;
+  init();
+}
+
+if(fb){
+  onAuthStateChanged(fb.auth,u=>{ user=u; start(); });
+  setTimeout(start,1200);
+}else{
+  user={uid:"demo"};
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",start); else start();
+}
