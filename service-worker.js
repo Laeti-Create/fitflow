@@ -1,4 +1,4 @@
-const APP_SHELL_VERSION = "0.52.0-develop.2";
+const APP_SHELL_VERSION = "0.52.0-develop.3";
 const SCOPE_URL = new URL(self.registration.scope);
 const BASE_PATH = SCOPE_URL.pathname.endsWith("/") ? SCOPE_URL.pathname : `${SCOPE_URL.pathname}/`;
 const CACHE_SCOPE = BASE_PATH.replace(/^\/+|\/+$/g, "").replaceAll("/", "-") || "root";
@@ -42,7 +42,6 @@ const FEATURE_FILES = [
   "food-search.js",
   "simple-foods.js",
   "nutrition-pickers.js",
-  "nutrition-live-updates.js",
   "nutrition-net-budget.js",
   "nutrition-add-menu.js",
   "barcode-scanner.js",
