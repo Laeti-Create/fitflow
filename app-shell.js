@@ -1,4 +1,4 @@
-const FITFLOW_VERSION = "0.52.0-develop.2";
+const FITFLOW_VERSION = "0.52.0-develop.3";
 const BUILD_CHANNEL = "develop";
 
 const STYLES = [
@@ -22,7 +22,6 @@ const MODULES = [
   "edit-meal-templates.js",
   "food-search.js",
   "nutrition-pickers.js",
-  "nutrition-live-updates.js",
   "nutrition-net-budget.js",
   "nutrition-add-menu.js",
   "barcode-scanner.js",
