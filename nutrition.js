@@ -378,7 +378,10 @@ async function addNutritionEntry(entry) {
   }
 }
 
-async function updateNutritionEntry(index, updates) {
+async function updateNutritionEntry(entryId, updates, fallbackIndex = null) {
+  const index = entryId
+    ? state.nutritionEntries.findIndex((entry) => entry.id === entryId)
+    : fallbackIndex;
   const entry = state.nutritionEntries[index];
   if (!entry) return;
 
@@ -397,7 +400,10 @@ async function updateNutritionEntry(index, updates) {
   renderNutrition();
 }
 
-async function deleteNutritionEntry(index) {
+async function deleteNutritionEntry(entryId, fallbackIndex = null) {
+  const index = entryId
+    ? state.nutritionEntries.findIndex((entry) => entry.id === entryId)
+    : fallbackIndex;
   const entry = state.nutritionEntries[index];
   if (!entry) return;
   if (!confirm("Supprimer cet aliment ?")) return;
@@ -654,15 +660,15 @@ function entryDisplayQuantity(entry) {
 function renderFoodItem(entry) {
   const realIndex = state.nutritionEntries.findIndex((item) => item === entry);
   return `
-    <div class="nutrition-food-item">
+    <div class="nutrition-food-item" data-entry-id="${escapeHtml(entry.id || "")}">
       <div>
         <strong>${escapeHtml(entry.name)}</strong>
         <small>${entryDisplayQuantity(entry)} · ${fmtInt(entry.calories)} kcal · P ${fmtNumber(entry.protein, 1)} · G ${fmtNumber(entry.carbs, 1)} · L ${fmtNumber(entry.fat, 1)} · F ${fmtNumber(entry.fiber, 1)}</small>
       </div>
       <div class="card-actions">
-        <button class="mini-action edit-food" data-index="${realIndex}">Modifier</button>
-        <button class="mini-action favorite-food" data-index="${realIndex}">Favori</button>
-        <button class="mini-action danger delete-food" data-index="${realIndex}">Supprimer</button>
+        <button class="mini-action edit-food" data-entry-id="${escapeHtml(entry.id || "")}" data-index="${realIndex}">Modifier</button>
+        <button class="mini-action favorite-food" data-entry-id="${escapeHtml(entry.id || "")}" data-index="${realIndex}">Favori</button>
+        <button class="mini-action danger delete-food" data-entry-id="${escapeHtml(entry.id || "")}" data-index="${realIndex}">Supprimer</button>
       </div>
     </div>
   `;
@@ -707,7 +713,10 @@ function promptValue(label, value) {
   return next;
 }
 
-async function editFood(index) {
+async function editFood(entryId, fallbackIndex = null) {
+  const index = entryId
+    ? state.nutritionEntries.findIndex((entry) => entry.id === entryId)
+    : fallbackIndex;
   const entry = state.nutritionEntries[index];
   if (!entry) return;
 
@@ -730,10 +739,13 @@ async function editFood(index) {
   if (Object.values(raw).some((value) => value === null)) return;
 
   const payload = buildFoodPayload(raw);
-  await updateNutritionEntry(index, payload);
+  await updateNutritionEntry(entry.id || entryId, payload, index);
 }
 
-async function addExistingEntryToFavorites(index) {
+async function addExistingEntryToFavorites(entryId, fallbackIndex = null) {
+  const index = entryId
+    ? state.nutritionEntries.findIndex((entry) => entry.id === entryId)
+    : fallbackIndex;
   const entry = state.nutritionEntries[index];
   if (!entry) return;
   await addFoodFavorite(buildFavoritePayload(entry));
@@ -771,9 +783,9 @@ function bindNutritionEvents() {
       prefillNutritionForm(addButton.dataset.meal || "breakfast");
       qs("[data-open='nutrition-form']")?.click();
     }
-    if (editButton) await editFood(Number(editButton.dataset.index));
-    if (favoriteButton) await addExistingEntryToFavorites(Number(favoriteButton.dataset.index));
-    if (deleteButton) await deleteNutritionEntry(Number(deleteButton.dataset.index));
+    if (editButton) await editFood(editButton.dataset.entryId || "", Number(editButton.dataset.index));
+    if (favoriteButton) await addExistingEntryToFavorites(favoriteButton.dataset.entryId || "", Number(favoriteButton.dataset.index));
+    if (deleteButton) await deleteNutritionEntry(deleteButton.dataset.entryId || "", Number(deleteButton.dataset.index));
     if (addFavoriteButton) await addFavoriteToDay(Number(addFavoriteButton.dataset.index));
     if (deleteFavoriteButton) await deleteFoodFavorite(Number(deleteFavoriteButton.dataset.index));
   });
