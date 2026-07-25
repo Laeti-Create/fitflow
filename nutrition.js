@@ -74,6 +74,8 @@ const MEAL_LABELS = {
 };
 
 let firebase = null;
+let nutritionRefreshPromise = null;
+let nutritionRefreshStatusTimer = null;
 let state = {
   user: null,
   profile: structuredClone(DEFAULT_PROFILE),
@@ -155,6 +157,87 @@ async function loadRemote() {
 
   const strengthSnap = await getDocs(query(collection(firebase.db, "users", uid, "strengthSessions"), orderBy("date", "desc")));
   state.strengthSessions = strengthSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+function ensureNutritionRefreshControls() {
+  const dateInput = qs("#nutrition-date");
+  if (!dateInput || qs("#nutrition-refresh-button")) return;
+
+  const controls = document.createElement("div");
+  controls.className = "nutrition-date-controls";
+  dateInput.parentNode.insertBefore(controls, dateInput);
+  controls.appendChild(dateInput);
+
+  const button = document.createElement("button");
+  button.id = "nutrition-refresh-button";
+  button.className = "mini-action nutrition-refresh-button";
+  button.type = "button";
+  button.textContent = "↻ Rafraîchir";
+  button.setAttribute("aria-label", "Rafraîchir les données Nutrition");
+  controls.appendChild(button);
+
+  const status = document.createElement("small");
+  status.id = "nutrition-refresh-status";
+  status.className = "nutrition-refresh-status";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  controls.appendChild(status);
+}
+
+function setNutritionRefreshStatus(message, type = "") {
+  const status = qs("#nutrition-refresh-status");
+  if (!status) return;
+  clearTimeout(nutritionRefreshStatusTimer);
+  status.textContent = message;
+  status.className = `nutrition-refresh-status ${type}`.trim();
+  if (message && type !== "loading") {
+    nutritionRefreshStatusTimer = setTimeout(() => {
+      status.textContent = "";
+      status.className = "nutrition-refresh-status";
+    }, 2500);
+  }
+}
+
+async function refreshNutritionData({ manual = false } = {}) {
+  if (nutritionRefreshPromise) return nutritionRefreshPromise;
+
+  const button = qs("#nutrition-refresh-button");
+  if (button) button.disabled = true;
+  setNutritionRefreshStatus("Actualisation…", "loading");
+
+  nutritionRefreshPromise = (async () => {
+    try {
+      if (firebase && state.user) {
+        const uid = state.user.uid;
+        const snapshot = await getDocs(query(
+          collection(firebase.db, "users", uid, "nutritionEntries"),
+          orderBy("date", "desc")
+        ));
+        state.nutritionEntries = snapshot.docs.map((entryDoc) => ({
+          id: entryDoc.id,
+          ...entryDoc.data()
+        }));
+      } else {
+        const localEntries = JSON.parse(localStorage.getItem(storageKey("nutritionEntries")) || "[]");
+        state.nutritionEntries = Array.isArray(localEntries) ? localEntries : [];
+      }
+
+      renderNutrition();
+      setNutritionRefreshStatus("Données à jour", "success");
+    } catch (error) {
+      console.warn("Actualisation Nutrition échouée :", error);
+      renderNutrition();
+      setNutritionRefreshStatus(
+        manual ? "Actualisation impossible · données conservées" : "Synchronisation impossible · données conservées",
+        "error"
+      );
+    } finally {
+      if (button) button.disabled = false;
+      nutritionRefreshPromise = null;
+    }
+  })();
+
+  return nutritionRefreshPromise;
 }
 
 function currentWeight() {
@@ -754,6 +837,7 @@ async function addExistingEntryToFavorites(entryId, fallbackIndex = null) {
 }
 
 function bindNutritionEvents() {
+  ensureNutritionRefreshControls();
   const dateInput = qs("#nutrition-date");
   if (dateInput) {
     dateInput.value = todayISO();
@@ -764,6 +848,12 @@ function bindNutritionEvents() {
     if (event.key?.includes("dailyActivityLevel")) renderNutrition();
   });
   window.addEventListener("focus", renderNutrition);
+  window.addEventListener("fitflow:nutrition-data-changed", () => {
+    refreshNutritionData().catch(() => {});
+  });
+  qs("#nutrition-refresh-button")?.addEventListener("click", () => {
+    refreshNutritionData({ manual: true }).catch(() => {});
+  });
 
   qsa("[data-open-nutrition-form]").forEach((button) => {
     button.addEventListener("click", () => {
