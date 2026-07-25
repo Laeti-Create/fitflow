@@ -299,3 +299,46 @@
     justify-content:flex-start;
   }
 }
+
+.nutrition-date-controls{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.nutrition-refresh-button{
+  white-space:nowrap;
+}
+
+.nutrition-refresh-button:disabled{
+  cursor:wait;
+  opacity:.65;
+}
+
+.nutrition-refresh-status{
+  flex-basis:100%;
+  min-height:1.2em;
+  text-align:right;
+  color:var(--muted, #64748b);
+  font-size:12px;
+}
+
+.nutrition-refresh-status.success{
+  color:#15803d;
+}
+
+.nutrition-refresh-status.error{
+  color:#b91c1c;
+}
+
+@media (max-width: 560px){
+  .nutrition-date-controls{
+    max-width:170px;
+  }
+
+  .nutrition-refresh-button{
+    padding:7px 10px;
+  }
+}
