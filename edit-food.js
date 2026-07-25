@@ -1,7 +1,7 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getFirestore, collection, getDoc, getDocs, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const qs = (s) => document.querySelector(s);
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -63,8 +63,11 @@ async function loadEntryById(id){
   if(!id) return null;
   const cached = cachedEntries.find((entry) => entry.id === id);
   if(cached) return cached;
-  const entries = await loadEntries(true);
-  return entries.find((entry) => entry.id === id) || null;
+  if(fb && user){
+    const snapshot = await getDoc(doc(fb.db, "users", user.uid, "nutritionEntries", id));
+    return snapshot.exists() ? { id:snapshot.id, ...snapshot.data() } : null;
+  }
+  return localEntries().find((entry) => entry.id === id) || null;
 }
 
 function calc(raw){
@@ -254,7 +257,10 @@ function bind(){
     const b = e.target.closest(".edit-food");
     if(!b) return;
     e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-    openEdit(Number(b.dataset.index), b.dataset.id || b.dataset.entryId || "");
+    const id = b.dataset.entryId || b.dataset.id || b.closest(".nutrition-food-item")?.dataset.entryId || "";
+    const index = Number(b.dataset.index);
+    if(!id && !Number.isFinite(index)){ toast("Identifiant de l’aliment indisponible"); return; }
+    openEdit(index, id);
   }, true);
   window.addEventListener("focus", () => { if(user) loadEntries(false).catch(()=>{}); });
   window.addEventListener("fitflow:nutrition-data-changed", () => { cachedEntries = []; cacheAt = 0; });
