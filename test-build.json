@@ -1,6 +1,6 @@
 {
   "channel": "develop",
-  "version": "0.53.0-develop.1",
+  "version": "0.53.0-develop.2",
   "deployment": "fitflow/test",
   "triggeredAt": "2026-07-27"
 }
