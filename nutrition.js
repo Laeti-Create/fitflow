@@ -76,6 +76,7 @@ const MEAL_LABELS = {
 let firebase = null;
 let nutritionRefreshPromise = null;
 let nutritionRefreshStatusTimer = null;
+let nutritionEventsBound = false;
 let state = {
   user: null,
   profile: structuredClone(DEFAULT_PROFILE),
@@ -844,6 +845,8 @@ async function addExistingEntryToFavorites(entryId, fallbackIndex = null) {
 
 function bindNutritionEvents() {
   ensureNutritionRefreshControls();
+  if (nutritionEventsBound) return;
+  nutritionEventsBound = true;
   const dateInput = qs("#nutrition-date");
   if (dateInput) {
     dateInput.value = todayISO();
