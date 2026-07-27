@@ -1,4 +1,11 @@
 import { firebaseConfig } from "./firebase-config.js";
+import {
+  getNutritionEntries,
+  replaceNutritionEntries,
+  addNutritionEntryToStore,
+  updateNutritionEntryInStore,
+  removeNutritionEntryFromStore
+} from "./nutrition-store.js";
 
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
@@ -80,13 +87,17 @@ let nutritionEventsBound = false;
 let state = {
   user: null,
   profile: structuredClone(DEFAULT_PROFILE),
-  nutritionEntries: [],
   foodFavorites: [],
   weights: [],
   walks: [],
   strengthSessions: [],
   mode: "demo"
 };
+
+Object.defineProperty(state, "nutritionEntries", {
+  enumerable: true,
+  get: getNutritionEntries
+});
 
 function setupFirebase() {
   if (!isConfigReady()) return null;
@@ -118,7 +129,7 @@ function currentDailyActivityLevel() {
 function loadLocal() {
   state.profile = JSON.parse(localStorage.getItem(storageKey("profile")) || "null") || structuredClone(DEFAULT_PROFILE);
   state.profile = { ...DEFAULT_PROFILE, ...state.profile };
-  state.nutritionEntries = JSON.parse(localStorage.getItem(storageKey("nutritionEntries")) || "null") || [];
+  replaceNutritionEntries(JSON.parse(localStorage.getItem(storageKey("nutritionEntries")) || "null") || []);
   state.foodFavorites = JSON.parse(localStorage.getItem(storageKey("foodFavorites")) || "null") || [];
   state.weights = JSON.parse(localStorage.getItem(storageKey("weights")) || "null") || [];
   state.walks = JSON.parse(localStorage.getItem(storageKey("walks")) || "null") || [];
@@ -145,7 +156,7 @@ async function loadRemote() {
     : { ...DEFAULT_PROFILE, firstname: state.user.displayName?.split(" ")?.[0] || DEFAULT_PROFILE.firstname };
 
   const nutritionSnap = await getDocs(query(collection(firebase.db, "users", uid, "nutritionEntries"), orderBy("date", "desc")));
-  state.nutritionEntries = nutritionSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  replaceNutritionEntries(nutritionSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
   const favoritesSnap = await getDocs(query(collection(firebase.db, "users", uid, "foodFavorites"), orderBy("name", "asc")));
   state.foodFavorites = favoritesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -214,13 +225,13 @@ async function refreshNutritionData({ manual = false } = {}) {
           collection(firebase.db, "users", uid, "nutritionEntries"),
           orderBy("date", "desc")
         ));
-        state.nutritionEntries = snapshot.docs.map((entryDoc) => ({
+        replaceNutritionEntries(snapshot.docs.map((entryDoc) => ({
           id: entryDoc.id,
           ...entryDoc.data()
-        }));
+        })));
       } else {
         const localEntries = JSON.parse(localStorage.getItem(storageKey("nutritionEntries")) || "[]");
-        state.nutritionEntries = Array.isArray(localEntries) ? localEntries : [];
+        replaceNutritionEntries(Array.isArray(localEntries) ? localEntries : []);
       }
 
       renderNutrition();
@@ -457,9 +468,9 @@ async function addNutritionEntry(entry) {
       ...entry,
       createdAt: serverTimestamp()
     });
-    state.nutritionEntries = [{ ...entry, id: docRef.id }, ...state.nutritionEntries];
+    addNutritionEntryToStore({ ...entry, id: docRef.id });
   } else {
-    state.nutritionEntries = [{ ...entry, id: crypto.randomUUID?.() || String(Date.now()) }, ...state.nutritionEntries];
+    addNutritionEntryToStore({ ...entry, id: crypto.randomUUID?.() || String(Date.now()) });
     saveLocal();
   }
 
@@ -475,8 +486,7 @@ async function updateNutritionEntry(entryId, updates, fallbackIndex = null) {
   const entry = state.nutritionEntries[index];
   if (!entry) return;
 
-  const updated = { ...entry, ...updates };
-  state.nutritionEntries[index] = updated;
+  updateNutritionEntryInStore(entryId, updates, index);
 
   if (firebase && state.user && entry.id) {
     await updateDoc(doc(firebase.db, "users", state.user.uid, "nutritionEntries", entry.id), {
@@ -498,7 +508,7 @@ async function deleteNutritionEntry(entryId, fallbackIndex = null) {
   if (!entry) return;
   if (!confirm("Supprimer cet aliment ?")) return;
 
-  state.nutritionEntries.splice(index, 1);
+  removeNutritionEntryFromStore(entryId, index);
 
   if (firebase && state.user && entry.id) {
     await deleteDoc(doc(firebase.db, "users", state.user.uid, "nutritionEntries", entry.id));
