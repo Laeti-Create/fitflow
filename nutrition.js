@@ -74,6 +74,9 @@ const MEAL_LABELS = {
 };
 
 let firebase = null;
+let nutritionRefreshPromise = null;
+let nutritionRefreshStatusTimer = null;
+let nutritionEventsBound = false;
 let state = {
   user: null,
   profile: structuredClone(DEFAULT_PROFILE),
@@ -155,6 +158,87 @@ async function loadRemote() {
 
   const strengthSnap = await getDocs(query(collection(firebase.db, "users", uid, "strengthSessions"), orderBy("date", "desc")));
   state.strengthSessions = strengthSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+function ensureNutritionRefreshControls() {
+  const dateInput = qs("#nutrition-date");
+  if (!dateInput || qs("#nutrition-refresh-button")) return;
+
+  const controls = document.createElement("div");
+  controls.className = "nutrition-date-controls";
+  dateInput.parentNode.insertBefore(controls, dateInput);
+  controls.appendChild(dateInput);
+
+  const button = document.createElement("button");
+  button.id = "nutrition-refresh-button";
+  button.className = "mini-action nutrition-refresh-button";
+  button.type = "button";
+  button.textContent = "↻ Rafraîchir";
+  button.setAttribute("aria-label", "Rafraîchir les données Nutrition");
+  controls.appendChild(button);
+
+  const status = document.createElement("small");
+  status.id = "nutrition-refresh-status";
+  status.className = "nutrition-refresh-status";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  controls.appendChild(status);
+}
+
+function setNutritionRefreshStatus(message, type = "") {
+  const status = qs("#nutrition-refresh-status");
+  if (!status) return;
+  clearTimeout(nutritionRefreshStatusTimer);
+  status.textContent = message;
+  status.className = `nutrition-refresh-status ${type}`.trim();
+  if (message && type !== "loading") {
+    nutritionRefreshStatusTimer = setTimeout(() => {
+      status.textContent = "";
+      status.className = "nutrition-refresh-status";
+    }, 2500);
+  }
+}
+
+async function refreshNutritionData({ manual = false } = {}) {
+  if (nutritionRefreshPromise) return nutritionRefreshPromise;
+
+  const button = qs("#nutrition-refresh-button");
+  if (button) button.disabled = true;
+  setNutritionRefreshStatus("Actualisation…", "loading");
+
+  nutritionRefreshPromise = (async () => {
+    try {
+      if (firebase && state.user) {
+        const uid = state.user.uid;
+        const snapshot = await getDocs(query(
+          collection(firebase.db, "users", uid, "nutritionEntries"),
+          orderBy("date", "desc")
+        ));
+        state.nutritionEntries = snapshot.docs.map((entryDoc) => ({
+          id: entryDoc.id,
+          ...entryDoc.data()
+        }));
+      } else {
+        const localEntries = JSON.parse(localStorage.getItem(storageKey("nutritionEntries")) || "[]");
+        state.nutritionEntries = Array.isArray(localEntries) ? localEntries : [];
+      }
+
+      renderNutrition();
+      setNutritionRefreshStatus("Données à jour", "success");
+    } catch (error) {
+      console.warn("Actualisation Nutrition échouée :", error);
+      renderNutrition();
+      setNutritionRefreshStatus(
+        manual ? "Actualisation impossible · données conservées" : "Synchronisation impossible · données conservées",
+        "error"
+      );
+    } finally {
+      if (button) button.disabled = false;
+      nutritionRefreshPromise = null;
+    }
+  })();
+
+  return nutritionRefreshPromise;
 }
 
 function currentWeight() {
@@ -321,7 +405,10 @@ async function addFoodFavorite(favorite) {
   }
 }
 
-async function deleteFoodFavorite(index) {
+async function deleteFoodFavorite(favoriteId, fallbackIndex = null) {
+  const index = favoriteId
+    ? state.foodFavorites.findIndex((favorite) => favorite.id === favoriteId)
+    : fallbackIndex;
   const favorite = state.foodFavorites[index];
   if (!favorite) return;
   if (!confirm(`Supprimer "${favorite.name}" des favoris ?`)) return;
@@ -337,7 +424,10 @@ async function deleteFoodFavorite(index) {
   renderFavorites();
 }
 
-async function addFavoriteToDay(index) {
+async function addFavoriteToDay(favoriteId, fallbackIndex = null) {
+  const index = favoriteId
+    ? state.foodFavorites.findIndex((favorite) => favorite.id === favoriteId)
+    : fallbackIndex;
   const favorite = state.foodFavorites[index];
   if (!favorite) return;
 
@@ -378,7 +468,10 @@ async function addNutritionEntry(entry) {
   }
 }
 
-async function updateNutritionEntry(index, updates) {
+async function updateNutritionEntry(entryId, updates, fallbackIndex = null) {
+  const index = entryId
+    ? state.nutritionEntries.findIndex((entry) => entry.id === entryId)
+    : fallbackIndex;
   const entry = state.nutritionEntries[index];
   if (!entry) return;
 
@@ -397,7 +490,10 @@ async function updateNutritionEntry(index, updates) {
   renderNutrition();
 }
 
-async function deleteNutritionEntry(index) {
+async function deleteNutritionEntry(entryId, fallbackIndex = null) {
+  const index = entryId
+    ? state.nutritionEntries.findIndex((entry) => entry.id === entryId)
+    : fallbackIndex;
   const entry = state.nutritionEntries[index];
   if (!entry) return;
   if (!confirm("Supprimer cet aliment ?")) return;
@@ -604,14 +700,14 @@ function renderFavoriteItem(favorite, index) {
     : `pour 100 ${favorite.unit || "g"}`;
 
   return `
-    <div class="favorite-item">
+    <div class="favorite-item" data-favorite-id="${escapeHtml(favorite.id || "")}">
       <div>
         <strong>${escapeHtml(favorite.name)}</strong>
         <small>${baseLabel} · ${fmtInt(favorite.baseCalories)} kcal · P ${fmtNumber(favorite.baseProtein, 1)} · G ${fmtNumber(favorite.baseCarbs, 1)} · L ${fmtNumber(favorite.baseFat, 1)}</small>
       </div>
       <div class="favorite-actions">
-        <button class="mini-action add-favorite-to-day" data-index="${index}">+ Ajouter</button>
-        <button class="mini-action danger delete-favorite" data-index="${index}">Supprimer</button>
+        <button class="mini-action add-favorite-to-day" data-favorite-id="${escapeHtml(favorite.id || "")}" data-index="${index}">+ Ajouter</button>
+        <button class="mini-action danger delete-favorite" data-favorite-id="${escapeHtml(favorite.id || "")}" data-index="${index}">Supprimer</button>
       </div>
     </div>
   `;
@@ -654,15 +750,15 @@ function entryDisplayQuantity(entry) {
 function renderFoodItem(entry) {
   const realIndex = state.nutritionEntries.findIndex((item) => item === entry);
   return `
-    <div class="nutrition-food-item">
+    <div class="nutrition-food-item" data-entry-id="${escapeHtml(entry.id || "")}">
       <div>
         <strong>${escapeHtml(entry.name)}</strong>
         <small>${entryDisplayQuantity(entry)} · ${fmtInt(entry.calories)} kcal · P ${fmtNumber(entry.protein, 1)} · G ${fmtNumber(entry.carbs, 1)} · L ${fmtNumber(entry.fat, 1)} · F ${fmtNumber(entry.fiber, 1)}</small>
       </div>
       <div class="card-actions">
-        <button class="mini-action edit-food" data-index="${realIndex}">Modifier</button>
-        <button class="mini-action favorite-food" data-index="${realIndex}">Favori</button>
-        <button class="mini-action danger delete-food" data-index="${realIndex}">Supprimer</button>
+        <button class="mini-action edit-food" data-entry-id="${escapeHtml(entry.id || "")}" data-index="${realIndex}">Modifier</button>
+        <button class="mini-action favorite-food" data-entry-id="${escapeHtml(entry.id || "")}" data-index="${realIndex}">Favori</button>
+        <button class="mini-action danger delete-food" data-entry-id="${escapeHtml(entry.id || "")}" data-index="${realIndex}">Supprimer</button>
       </div>
     </div>
   `;
@@ -707,7 +803,10 @@ function promptValue(label, value) {
   return next;
 }
 
-async function editFood(index) {
+async function editFood(entryId, fallbackIndex = null) {
+  const index = entryId
+    ? state.nutritionEntries.findIndex((entry) => entry.id === entryId)
+    : fallbackIndex;
   const entry = state.nutritionEntries[index];
   if (!entry) return;
 
@@ -730,10 +829,13 @@ async function editFood(index) {
   if (Object.values(raw).some((value) => value === null)) return;
 
   const payload = buildFoodPayload(raw);
-  await updateNutritionEntry(index, payload);
+  await updateNutritionEntry(entry.id || entryId, payload, index);
 }
 
-async function addExistingEntryToFavorites(index) {
+async function addExistingEntryToFavorites(entryId, fallbackIndex = null) {
+  const index = entryId
+    ? state.nutritionEntries.findIndex((entry) => entry.id === entryId)
+    : fallbackIndex;
   const entry = state.nutritionEntries[index];
   if (!entry) return;
   await addFoodFavorite(buildFavoritePayload(entry));
@@ -742,6 +844,9 @@ async function addExistingEntryToFavorites(index) {
 }
 
 function bindNutritionEvents() {
+  ensureNutritionRefreshControls();
+  if (nutritionEventsBound) return;
+  nutritionEventsBound = true;
   const dateInput = qs("#nutrition-date");
   if (dateInput) {
     dateInput.value = todayISO();
@@ -752,6 +857,12 @@ function bindNutritionEvents() {
     if (event.key?.includes("dailyActivityLevel")) renderNutrition();
   });
   window.addEventListener("focus", renderNutrition);
+  window.addEventListener("fitflow:nutrition-data-changed", () => {
+    refreshNutritionData().catch(() => {});
+  });
+  qs("#nutrition-refresh-button")?.addEventListener("click", () => {
+    refreshNutritionData({ manual: true }).catch(() => {});
+  });
 
   qsa("[data-open-nutrition-form]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -771,11 +882,11 @@ function bindNutritionEvents() {
       prefillNutritionForm(addButton.dataset.meal || "breakfast");
       qs("[data-open='nutrition-form']")?.click();
     }
-    if (editButton) await editFood(Number(editButton.dataset.index));
-    if (favoriteButton) await addExistingEntryToFavorites(Number(favoriteButton.dataset.index));
-    if (deleteButton) await deleteNutritionEntry(Number(deleteButton.dataset.index));
-    if (addFavoriteButton) await addFavoriteToDay(Number(addFavoriteButton.dataset.index));
-    if (deleteFavoriteButton) await deleteFoodFavorite(Number(deleteFavoriteButton.dataset.index));
+    if (editButton) await editFood(editButton.dataset.entryId || "", Number(editButton.dataset.index));
+    if (favoriteButton) await addExistingEntryToFavorites(favoriteButton.dataset.entryId || "", Number(favoriteButton.dataset.index));
+    if (deleteButton) await deleteNutritionEntry(deleteButton.dataset.entryId || "", Number(deleteButton.dataset.index));
+    if (addFavoriteButton) await addFavoriteToDay(addFavoriteButton.dataset.favoriteId || "", Number(addFavoriteButton.dataset.index));
+    if (deleteFavoriteButton) await deleteFoodFavorite(deleteFavoriteButton.dataset.favoriteId || "", Number(deleteFavoriteButton.dataset.index));
   });
 
   const form = qs("#nutrition-form");
