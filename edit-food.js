@@ -1,7 +1,8 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
-import { getFirestore, collection, getDoc, getDocs, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getFirestore, getDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getNutritionEntries, replaceNutritionEntries, updateNutritionEntryInStore } from "./nutrition-store.js";
 
 const qs = (s) => document.querySelector(s);
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -10,8 +11,6 @@ let user = null;
 let editingIndex = null;
 let editingId = null;
 let editingEntry = null;
-let cachedEntries = [];
-let cacheAt = 0;
 let openingToken = 0;
 
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v) => String(v).includes("REMPLACE_MOI"));
@@ -40,29 +39,16 @@ function refresh(){
   setTimeout(() => window.dispatchEvent(new Event("focus")), 350);
 }
 
-async function loadEntries(force = false){
-  if(!force && cachedEntries.length && Date.now() - cacheAt < 15000) return cachedEntries;
-  if(fb && user){
-    const snap = await getDocs(query(collection(fb.db, "users", user.uid, "nutritionEntries"), orderBy("date", "desc")));
-    cachedEntries = snap.docs.map((d) => ({ id:d.id, ...d.data() }));
-  }else{
-    cachedEntries = localEntries();
-  }
-  cacheAt = Date.now();
-  return cachedEntries;
-}
-
 async function loadEntry(index){
-  const cached = cachedEntries[index];
-  if(cached) return cached;
-  const entries = await loadEntries(true);
-  return entries[index] || null;
+  const storeEntry = getNutritionEntries()[index];
+  if(storeEntry) return storeEntry;
+  return localEntries()[index] || null;
 }
 
 async function loadEntryById(id){
   if(!id) return null;
-  const cached = cachedEntries.find((entry) => entry.id === id);
-  if(cached) return cached;
+  const storeEntry = getNutritionEntries().find((entry) => entry.id === id);
+  if(storeEntry) return storeEntry;
   if(fb && user){
     const snapshot = await getDoc(doc(fb.db, "users", user.uid, "nutritionEntries", id));
     return snapshot.exists() ? { id:snapshot.id, ...snapshot.data() } : null;
@@ -239,8 +225,10 @@ async function saveEdit(e){
       saveLocalEntries(entries);
       editingIndex = localIndex;
     }
-    const cacheIndex = editingId ? cachedEntries.findIndex((entry) => entry.id === editingId) : editingIndex;
-    if(cacheIndex >= 0) cachedEntries[cacheIndex] = { ...cachedEntries[cacheIndex], ...update };
+    const updatedEntry = updateNutritionEntryInStore(editingEntry.id || editingId, update, editingIndex);
+    if(!updatedEntry && !(fb && user)){
+      replaceNutritionEntries(localEntries());
+    }
     qs("#edit-food-modal")?.classList.remove("active");
     toast("Aliment modifié ✅");
     refresh();
@@ -262,10 +250,7 @@ function bind(){
     if(!id && !Number.isFinite(index)){ toast("Identifiant de l’aliment indisponible"); return; }
     openEdit(index, id);
   }, true);
-  window.addEventListener("focus", () => { if(user) loadEntries(false).catch(()=>{}); });
-  window.addEventListener("fitflow:nutrition-data-changed", () => { cachedEntries = []; cacheAt = 0; });
-  window.addEventListener("fitflow:nutrition-entry-added", () => { cachedEntries = []; cacheAt = 0; });
 }
 
-if(fb){ onAuthStateChanged(fb.auth, (u) => { user = u; if(user) loadEntries(true).catch(()=>{}); }); } else { user = { uid:"demo" }; }
+if(fb){ onAuthStateChanged(fb.auth, (u) => { user = u; }); } else { user = { uid:"demo" }; replaceNutritionEntries(localEntries()); }
 if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind); else bind();
