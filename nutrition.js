@@ -404,7 +404,10 @@ async function addFoodFavorite(favorite) {
   }
 }
 
-async function deleteFoodFavorite(index) {
+async function deleteFoodFavorite(favoriteId, fallbackIndex = null) {
+  const index = favoriteId
+    ? state.foodFavorites.findIndex((favorite) => favorite.id === favoriteId)
+    : fallbackIndex;
   const favorite = state.foodFavorites[index];
   if (!favorite) return;
   if (!confirm(`Supprimer "${favorite.name}" des favoris ?`)) return;
@@ -420,7 +423,10 @@ async function deleteFoodFavorite(index) {
   renderFavorites();
 }
 
-async function addFavoriteToDay(index) {
+async function addFavoriteToDay(favoriteId, fallbackIndex = null) {
+  const index = favoriteId
+    ? state.foodFavorites.findIndex((favorite) => favorite.id === favoriteId)
+    : fallbackIndex;
   const favorite = state.foodFavorites[index];
   if (!favorite) return;
 
@@ -693,14 +699,14 @@ function renderFavoriteItem(favorite, index) {
     : `pour 100 ${favorite.unit || "g"}`;
 
   return `
-    <div class="favorite-item">
+    <div class="favorite-item" data-favorite-id="${escapeHtml(favorite.id || "")}">
       <div>
         <strong>${escapeHtml(favorite.name)}</strong>
         <small>${baseLabel} · ${fmtInt(favorite.baseCalories)} kcal · P ${fmtNumber(favorite.baseProtein, 1)} · G ${fmtNumber(favorite.baseCarbs, 1)} · L ${fmtNumber(favorite.baseFat, 1)}</small>
       </div>
       <div class="favorite-actions">
-        <button class="mini-action add-favorite-to-day" data-index="${index}">+ Ajouter</button>
-        <button class="mini-action danger delete-favorite" data-index="${index}">Supprimer</button>
+        <button class="mini-action add-favorite-to-day" data-favorite-id="${escapeHtml(favorite.id || "")}" data-index="${index}">+ Ajouter</button>
+        <button class="mini-action danger delete-favorite" data-favorite-id="${escapeHtml(favorite.id || "")}" data-index="${index}">Supprimer</button>
       </div>
     </div>
   `;
@@ -876,8 +882,8 @@ function bindNutritionEvents() {
     if (editButton) await editFood(editButton.dataset.entryId || "", Number(editButton.dataset.index));
     if (favoriteButton) await addExistingEntryToFavorites(favoriteButton.dataset.entryId || "", Number(favoriteButton.dataset.index));
     if (deleteButton) await deleteNutritionEntry(deleteButton.dataset.entryId || "", Number(deleteButton.dataset.index));
-    if (addFavoriteButton) await addFavoriteToDay(Number(addFavoriteButton.dataset.index));
-    if (deleteFavoriteButton) await deleteFoodFavorite(Number(deleteFavoriteButton.dataset.index));
+    if (addFavoriteButton) await addFavoriteToDay(addFavoriteButton.dataset.favoriteId || "", Number(addFavoriteButton.dataset.index));
+    if (deleteFavoriteButton) await deleteFoodFavorite(deleteFavoriteButton.dataset.favoriteId || "", Number(deleteFavoriteButton.dataset.index));
   });
 
   const form = qs("#nutrition-form");
