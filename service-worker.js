@@ -1,4 +1,4 @@
-const APP_SHELL_VERSION = "0.52.0-develop.5";
+const APP_SHELL_VERSION = "0.53.0-develop.1";
 const SCOPE_URL = new URL(self.registration.scope);
 const BASE_PATH = SCOPE_URL.pathname.endsWith("/") ? SCOPE_URL.pathname : `${SCOPE_URL.pathname}/`;
 const CACHE_SCOPE = BASE_PATH.replace(/^\/+|\/+$/g, "").replaceAll("/", "-") || "root";
@@ -14,6 +14,7 @@ const CORE_FILES = [
   "app.js",
   "home-coach.js",
   "nutrition.js",
+  "nutrition-store.js",
   "app-shell.js",
   "auth-recovery.js",
   "firebase-config.js",
