@@ -1,7 +1,8 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getNutritionEntries, subscribeToNutritionEntries } from "./nutrition-store.js";
 
 const qs = (s) => document.querySelector(s);
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -9,8 +10,6 @@ let user = null;
 let targets = { calories:1650, protein:127, fiber:25, waterMl:2000 };
 let bound = false;
 let renderTimer = null;
-let entriesCache = null;
-let entriesCacheAt = 0;
 let targetsCacheAt = 0;
 
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v) => String(v).includes("REMPLACE_MOI"));
@@ -25,7 +24,6 @@ function localKey(name){ return `fitflow:${user?.uid || "demo"}:${name}`; }
 function n(v){ return Number(v || 0); }
 function fmt(v, d = 0){ return Number(v || 0).toLocaleString("fr-FR", { maximumFractionDigits:d, minimumFractionDigits:d }); }
 function liters(ml){ return `${fmt(n(ml) / 1000, 2)} L`; }
-function invalidateCache(){ entriesCache = null; entriesCacheAt = 0; }
 
 function lastSevenDates(endDate){
   const end = new Date(`${endDate}T12:00:00`);
@@ -49,18 +47,6 @@ async function loadTargets(force = false){
     }
     targetsCacheAt = Date.now();
   }catch(e){ console.warn("Objectifs tendance non chargés", e); }
-}
-
-async function loadNutritionEntries(force = false){
-  if(!force && entriesCache && Date.now() - entriesCacheAt < 10000) return entriesCache;
-  if(fb && user){
-    const snap = await getDocs(query(collection(fb.db, "users", user.uid, "nutritionEntries"), orderBy("date", "desc")));
-    entriesCache = snap.docs.map((d) => ({ id:d.id, ...d.data() }));
-  }else{
-    entriesCache = JSON.parse(localStorage.getItem(localKey("nutritionEntries")) || "[]");
-  }
-  entriesCacheAt = Date.now();
-  return entriesCache;
 }
 
 async function loadWaterMap(dates){
@@ -102,7 +88,7 @@ async function render(force = false){
   if(!ensureCard()) return;
   await loadTargets(force);
   const dates = lastSevenDates(dateValue());
-  const entries = await loadNutritionEntries(force);
+  const entries = getNutritionEntries();
   const water = await loadWaterMap(dates);
   const byDay = Object.fromEntries(dates.map((d) => [d, { calories:0, protein:0, fiber:0, water:water[d] || 0 }]));
 
@@ -145,13 +131,14 @@ function bind(){
   if(bound) return; bound = true;
   qs("#nutrition-date")?.addEventListener("change", () => requestRender(350, true));
   window.addEventListener("focus", () => requestRender(900));
-  window.addEventListener("fitflow:nutrition-entry-added", () => { invalidateCache(); requestRender(1800, true); });
-  window.addEventListener("fitflow:nutrition-data-changed", () => { invalidateCache(); requestRender(1800, true); });
+  subscribeToNutritionEntries(() => requestRender(150));
+  window.addEventListener("fitflow:nutrition-entry-added", () => requestRender(350));
+  window.addEventListener("fitflow:nutrition-data-changed", () => requestRender(350));
 }
 
 function init(){
   try{ ensureCard(); bind(); render(); setTimeout(() => render(), 1200); }catch(e){ console.warn("Tendance 7 jours désactivée", e); }
 }
 
-if(fb){ onAuthStateChanged(fb.auth, async (u) => { user = u; invalidateCache(); await render(true); }); } else { user = { uid:"demo" }; }
+if(fb){ onAuthStateChanged(fb.auth, async (u) => { user = u; await render(true); }); } else { user = { uid:"demo" }; }
 if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
