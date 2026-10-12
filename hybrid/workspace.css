@@ -1,0 +1,14 @@
+.hybrid-card details {border-top:1px solid #ecdce3;padding:14px 0;}
+.hybrid-card summary {cursor:pointer;font-weight:700;}
+.hybrid-card form {display:grid;gap:12px;margin:16px 0;}
+.hybrid-card label {display:grid;gap:5px;font-size:14px;}
+.hybrid-card input,.hybrid-card select,.hybrid-card textarea {width:100%;box-sizing:border-box;border:1px solid #dcced5;border-radius:12px;padding:10px;background:#fff;font:inherit;}
+.hybrid-card textarea {min-height:88px;resize:vertical;}
+.hybrid-card .hybrid-check {display:flex;gap:8px;align-items:center;}
+.hybrid-check input {width:auto;}
+.hybrid-card fieldset {border:1px solid #ecdce3;border-radius:12px;display:grid;gap:8px;padding:12px;}
+.hybrid-card output {display:block;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;margin:12px 0;}
+.hybrid-card .hybrid-status {border-radius:12px;padding:12px;background:#fff4e9;}
+.hybrid-card button {min-height:44px;}
+.hybrid-card ul {padding-left:20px;}
+.hybrid-card .hybrid-row {display:grid;grid-template-columns:1fr 1fr;gap:10px;}

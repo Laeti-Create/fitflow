@@ -1,0 +1,22 @@
+{
+  "name": "fitflow",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs tests/*.test.mjs",
+    "dev": "node scripts/dev-server.mjs",
+    "emulators": "firebase emulators:start --config firebase.emulator.json --project demo-fitflow --only auth,firestore",
+    "test:rules": "firebase emulators:exec --config firebase.emulator.json --project demo-fitflow --only firestore \"node --test tests/firestore.rules.mjs\"",
+    "test:browser": "playwright test",
+    "seed:local": "node scripts/seed-local.mjs",
+    "test:integration": "firebase emulators:exec --config firebase.emulator.json --project demo-fitflow --only auth,firestore \"npm run seed:local && npm run test:browser\""
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.0",
+    "@playwright/test": "1.56.1",
+    "firebase": "12.15.0",
+    "firebase-tools": "14.27.0"
+  }
+}

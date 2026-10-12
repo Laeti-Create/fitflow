@@ -1,0 +1,11 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {authorizeCoach,maximumReservation,budgetAllows,validateRequestId} from '../server/coach-policy.mjs';
+const request={verifiedIdentity:{uid:'alice',emailVerified:true},verifiedAppCheck:true,grant:{active:true},profile:{adult:true,goals:['running'],days:[2],experience:'beginner',minutes:45,strengthDays:0,runDays:1,equipment:'Chaussures',recentTraining:'Aucune',safety:'none',aiConsent:true}};
+test('server policy derives uid from verified identity only',()=>assert.equal(authorizeCoach({...request,uid:'bob'}).uid,'alice'));
+test('server policy refuses every missing trust signal',()=>{for(const bad of [{verifiedIdentity:null},{verifiedAppCheck:false},{grant:{active:false}},{verifiedIdentity:{uid:'alice',emailVerified:false}}]) assert.throws(()=>authorizeCoach({...request,...bad}));});
+test('server policy refuses absent consent and unresolved health constraints',()=>{assert.throws(()=>authorizeCoach({...request,profile:{...request.profile,aiConsent:false}}));assert.throws(()=>authorizeCoach({...request,profile:{...request.profile,safety:'review'}}));});
+test('reservation includes input output reasoning allowance and searches',()=>assert.equal(maximumReservation({inputTokens:20000,outputTokens:15000,searchCalls:5,rates:{inputPerMillion:2,outputPerMillion:10,searchPerCall:0.01}}),240000));
+test('parallel reservations must fit inside remaining quota',()=>{assert.equal(budgetAllows({reservedMicroUsd:900,spentMicroUsd:50,limitMicroUsd:1000,nextMicroUsd:51}),false);assert.equal(budgetAllows({reservedMicroUsd:900,spentMicroUsd:50,limitMicroUsd:1000,nextMicroUsd:50}),true);});
+test('invalid cost inputs fail closed',()=>{assert.throws(()=>budgetAllows({reservedMicroUsd:NaN,spentMicroUsd:0,limitMicroUsd:100,nextMicroUsd:1}));assert.throws(()=>maximumReservation({inputTokens:-1,outputTokens:1,searchCalls:0,rates:{inputPerMillion:2,outputPerMillion:10,searchPerCall:0.01}}));});
+test('idempotency key rejects path or short IDs',()=>{assert.throws(()=>validateRequestId('../alice'));assert.equal(validateRequestId('request_1234567890'),'request_1234567890');});

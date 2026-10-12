@@ -1,4 +1,4 @@
-const FITFLOW_VERSION = "0.53.0-develop.3";
+const FITFLOW_VERSION = "0.54.0-develop.1";
 const BUILD_CHANNEL = "develop";
 
 const STYLES = [
@@ -10,6 +10,7 @@ const STYLES = [
 
 const MODULES = [
   "auth-recovery.js",
+  "hybrid/workspace.js",
   "nutrition-enhancements.js",
   "meal-templates.js",
   "meal-template-builder-v2.js",
@@ -163,9 +164,17 @@ async function repairAppCache() {
   if (!("caches" in window)) return;
   const confirmed = window.confirm("Réparer le cache de FitFlow ? Tes données Firebase et tes données locales ne seront pas supprimées.");
   if (!confirmed) return;
-  const keys = await caches.keys();
-  await Promise.all(keys.filter((key) => key.startsWith("fitflow-cache-")).map((key) => caches.delete(key)));
   const registration = await navigator.serviceWorker?.getRegistration("./");
+  if (!registration) return;
+  const scopePath = new URL(registration.scope).pathname;
+  const cacheScope = scopePath.replace(/^\/+|\/+$/g, "").replaceAll("/", "-") || "root";
+  const prefix = `fitflow-cache-${cacheScope}::`;
+  const legacyPrefix = `fitflow-cache-${cacheScope}-`;
+  const keys = await caches.keys();
+  const scopedKeys = keys.filter((key) => key.startsWith(prefix) || (
+    key.startsWith(legacyPrefix) && /^\d+\.\d+\.\d+(?:-|$)/.test(key.slice(legacyPrefix.length))
+  ));
+  await Promise.all(scopedKeys.map((key) => caches.delete(key)));
   await registration?.update();
   window.location.reload();
 }
@@ -251,7 +260,11 @@ async function init() {
   removeLegacyCoachCard();
   createOfflineBadge();
   injectSettingsCards();
-  await setupUpdateFlow();
+  try {
+    await setupUpdateFlow();
+  } catch (error) {
+    console.warn("Vérification des mises à jour indisponible", error);
+  }
   await loadModules();
   removeLegacyCoachCard();
   injectSettingsCards();

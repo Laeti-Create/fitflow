@@ -642,6 +642,7 @@ function renderNutrition() {
 
   qs("#nutrition-consumed").textContent = fmtInt(totals.calories);
   qs("#nutrition-target").textContent = fmtInt(targets.calorieTarget);
+  qs("#nutrition-target").dataset.baseTarget = String(targets.calorieTarget);
   qs("#nutrition-left").textContent = `${caloriesLeft >= 0 ? "Restant" : "Dépassé"} : ${fmtInt(Math.abs(caloriesLeft))} kcal`;
   qs("#nutrition-calorie-progress").style.width = `${progressWidth(totals.calories, targets.calorieTarget)}%`;
 
@@ -713,7 +714,7 @@ function renderFavoriteItem(favorite, index) {
     <div class="favorite-item" data-favorite-id="${escapeHtml(favorite.id || "")}">
       <div>
         <strong>${escapeHtml(favorite.name)}</strong>
-        <small>${baseLabel} · ${fmtInt(favorite.baseCalories)} kcal · P ${fmtNumber(favorite.baseProtein, 1)} · G ${fmtNumber(favorite.baseCarbs, 1)} · L ${fmtNumber(favorite.baseFat, 1)}</small>
+        <small>${escapeHtml(baseLabel)} · ${fmtInt(favorite.baseCalories)} kcal · P ${fmtNumber(favorite.baseProtein, 1)} · G ${fmtNumber(favorite.baseCarbs, 1)} · L ${fmtNumber(favorite.baseFat, 1)}</small>
       </div>
       <div class="favorite-actions">
         <button class="mini-action add-favorite-to-day" data-favorite-id="${escapeHtml(favorite.id || "")}" data-index="${index}">+ Ajouter</button>
@@ -763,7 +764,7 @@ function renderFoodItem(entry) {
     <div class="nutrition-food-item" data-entry-id="${escapeHtml(entry.id || "")}">
       <div>
         <strong>${escapeHtml(entry.name)}</strong>
-        <small>${entryDisplayQuantity(entry)} · ${fmtInt(entry.calories)} kcal · P ${fmtNumber(entry.protein, 1)} · G ${fmtNumber(entry.carbs, 1)} · L ${fmtNumber(entry.fat, 1)} · F ${fmtNumber(entry.fiber, 1)}</small>
+        <small>${escapeHtml(entryDisplayQuantity(entry))} · ${fmtInt(entry.calories)} kcal · P ${fmtNumber(entry.protein, 1)} · G ${fmtNumber(entry.carbs, 1)} · L ${fmtNumber(entry.fat, 1)} · F ${fmtNumber(entry.fiber, 1)}</small>
       </div>
       <div class="card-actions">
         <button class="mini-action edit-food" data-entry-id="${escapeHtml(entry.id || "")}" data-index="${realIndex}">Modifier</button>

@@ -9,6 +9,8 @@ const todayISO = () => new Date().toISOString().slice(0,10);
 let user = null;
 let runs = [];
 let profile = {};
+let eventsBound = false;
+let saveInProgress = false;
 
 const PLAN_SESSION_LABELS = {
   "w1-quality":"S1 · VMA courte",
@@ -143,6 +145,7 @@ function navigateRun(view){
 
 async function saveRun(e){
   e.preventDefault();
+  if(saveInProgress) return;
   const form = e.currentTarget;
   const raw = Object.fromEntries(new FormData(form).entries());
   const distance = n(raw.distance);
@@ -160,6 +163,7 @@ async function saveRun(e){
     planSessionId:raw.planSessionId || null,
     ...computed
   };
+  saveInProgress = true;
   try{
     let savedRun;
     if(fb && user){
@@ -177,14 +181,15 @@ async function saveRun(e){
     toast(run.planSessionId ? "Sortie enregistrée et séance liée ✅" : "Sortie course enregistrée ✅");
     navigateRun("run");
   }catch(err){ console.warn(err); toast("Erreur pendant l’enregistrement"); }
+  finally{ saveInProgress = false; }
 }
 
-async function deleteRun(index){
-  const run = runs[index];
+async function deleteRun(runId){
+  const run = runs.find((item) => item.id === runId);
   if(!run || !confirm("Supprimer cette sortie course ?")) return;
   try{
     if(fb && user && run.id) await deleteDoc(doc(fb.db,"users",user.uid,"runs",run.id));
-    runs.splice(index,1);
+    runs = runs.filter((item) => item.id !== runId);
     if(!fb || !user) saveLocal("runs", runs);
     renderRuns();
     window.dispatchEvent(new CustomEvent("fitflow:run-deleted", { detail:{ run } }));
@@ -204,16 +209,18 @@ function renderRuns(){
   qs("#run-total-calories") && (qs("#run-total-calories").textContent = fmtInt(totalCalories));
   list.innerHTML = sorted.length ? sorted.map((run,i)=>{
     const planBadge = run.planSessionId ? `<span class="run-plan-linked-badge">🔗 ${esc(PLAN_SESSION_LABELS[run.planSessionId] || "Séance du programme")}</span>` : "";
-    return `<article class="history-card"><div class="avatar">🏃‍♀️</div><div><strong>${fmtDate(run.date)}</strong><small>${fmt(run.distance,2)} km • ${run.duration} min • ${formatPace(run.pace)} • ${fmtInt(run.calories)} kcal</small>${planBadge}<div class="card-actions"><button class="mini-action danger delete-run" data-index="${i}">Supprimer</button></div></div><div class="right">${typeLabel(run.type)}<span>Ressenti ${run.effort}/10${run.manualCalories ? " · Watch" : " · calcul"}</span></div></article>`;
+    return `<article class="history-card"><div class="avatar">🏃‍♀️</div><div><strong>${fmtDate(run.date)}</strong><small>${fmt(run.distance,2)} km • ${run.duration} min • ${formatPace(run.pace)} • ${fmtInt(run.calories)} kcal</small>${planBadge}<div class="card-actions"><button class="mini-action danger delete-run" data-run-id="${esc(run.id || "")}">Supprimer</button></div></div><div class="right">${typeLabel(run.type)}<span>Ressenti ${run.effort}/10${run.manualCalories ? " · Watch" : " · calcul"}</span></div></article>`;
   }).join("") : `<article class="empty-template">Aucune sortie course pour le moment. Ajoute ta première reprise demain 🏃‍♀️</article>`;
 }
 
 function bind(){
+  if(eventsBound) return;
+  eventsBound = true;
   document.addEventListener("click", e=>{
     const nav = e.target.closest("[data-run-nav]");
     if(nav){ e.preventDefault(); navigateRun(nav.dataset.runNav); }
     const del = e.target.closest(".delete-run");
-    if(del) deleteRun(Number(del.dataset.index));
+    if(del) deleteRun(del.dataset.runId);
   });
 }
 

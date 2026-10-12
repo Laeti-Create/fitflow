@@ -1,8 +1,16 @@
-const APP_SHELL_VERSION = "0.53.0-develop.3";
+const APP_SHELL_VERSION = "0.54.0-develop.1";
 const SCOPE_URL = new URL(self.registration.scope);
 const BASE_PATH = SCOPE_URL.pathname.endsWith("/") ? SCOPE_URL.pathname : `${SCOPE_URL.pathname}/`;
 const CACHE_SCOPE = BASE_PATH.replace(/^\/+|\/+$/g, "").replaceAll("/", "-") || "root";
-const CACHE_NAME = `fitflow-cache-${CACHE_SCOPE}-${APP_SHELL_VERSION}`;
+const CACHE_PREFIX = `fitflow-cache-${CACHE_SCOPE}::`;
+const CACHE_NAME = `${CACHE_PREFIX}${APP_SHELL_VERSION}`;
+const LEGACY_CACHE_PREFIX = `fitflow-cache-${CACHE_SCOPE}-`;
+
+function isCurrentScopeCache(key) {
+  return key.startsWith(CACHE_PREFIX) || (
+    key.startsWith(LEGACY_CACHE_PREFIX) && /^\d+\.\d+\.\d+(?:-|$)/.test(key.slice(LEGACY_CACHE_PREFIX.length))
+  );
+}
 
 const CORE_FILES = [
   "",
@@ -18,6 +26,7 @@ const CORE_FILES = [
   "app-shell.js",
   "auth-recovery.js",
   "firebase-config.js",
+  "hybrid/environment.mjs",
   "manifest.json",
   "icon.svg",
   "icon-192.png",
@@ -25,6 +34,12 @@ const CORE_FILES = [
 ];
 
 const FEATURE_FILES = [
+  "hybrid/workspace.js",
+  "hybrid/workspace.css",
+  "hybrid/domain.mjs",
+  "hybrid/session.mjs",
+  "hybrid/repository.mjs",
+  "hybrid/firebase-repository.js",
   "nutrition-enhancements.css",
   "running-plan.css",
   "running-guided.css",
@@ -128,7 +143,7 @@ self.addEventListener("activate", (event) => {
     caches.keys()
       .then((keys) => Promise.all(
         keys
-          .filter((key) => key.startsWith("fitflow-cache-") && key !== CACHE_NAME)
+          .filter((key) => isCurrentScopeCache(key) && key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())

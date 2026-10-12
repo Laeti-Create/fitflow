@@ -10,6 +10,7 @@ let dataCache = null;
 let dataCacheAt = 0;
 let dataCacheDate = "";
 let syncTimer = null;
+let eventsBound = false;
 
 const LEVELS = { calm:{label:"Calme",rate:.10}, normal:{label:"Normale",rate:.15}, active:{label:"Active",rate:.20} };
 const ready = () => firebaseConfig?.apiKey && !Object.values(firebaseConfig).some((v)=>String(v).includes("REMPLACE_MOI"));
@@ -116,6 +117,8 @@ async function syncDashboardRunWeek(force = false){
 function init(){
   requestSync(400, true);
   syncDashboardRunWeek(true);
+  if(eventsBound) return;
+  eventsBound = true;
   window.addEventListener("focus",()=>requestSync(900));
   window.addEventListener("fitflow:nutrition-data-changed",()=>requestSync(1200, true));
   window.addEventListener("fitflow:nutrition-entry-added",()=>requestSync(1600, true));
