@@ -265,7 +265,7 @@ test('cache repair leaves other environments and data stores intact', async () =
 
 test('activating stable worker keeps test caches, including legacy names', async () => {
   const box = sandbox(); const deleted = []; let activate;
-  box.context.caches = { keys: async () => ['fitflow-cache-fitflow-0.53.0-develop.3','fitflow-cache-fitflow::0.53.0-develop.4','fitflow-cache-fitflow-test-0.53.0-develop.3','fitflow-cache-fitflow-test::0.53.0-develop.4'], delete: async (key) => deleted.push(key) };
+  box.context.caches = { keys: async () => ['fitflow-cache-fitflow-0.53.0-develop.3',`fitflow-cache-fitflow::${source('service-worker.js').match(/APP_SHELL_VERSION = "([^"]+)"/)[1]}`,'fitflow-cache-fitflow-test-0.53.0-develop.3','fitflow-cache-fitflow-test::0.53.0-develop.4'], delete: async (key) => deleted.push(key) };
   box.context.self = { registration: { scope: 'https://example.test/fitflow/' }, addEventListener: (name, handler) => { if(name === 'activate') activate = handler; }, clients: { claim: async () => {} } };
   box.run(source('service-worker.js'));
   let pending; activate({ waitUntil: (promise) => { pending = promise; } }); await pending;

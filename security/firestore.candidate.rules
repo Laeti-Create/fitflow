@@ -1,0 +1,86 @@
+// Candidate only: explicitly loaded by firebase.emulator.json, never deployed here.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(uid) { return request.auth != null && request.auth.uid == uid; }
+    function member(uid) {
+      return owner(uid) && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/accessGrants/$(uid))
+        && get(/databases/$(database)/documents/accessGrants/$(uid)).data.active == true;
+    }
+    function legacy(c) {
+      return c in ['profile','walks','weights','measurements','strengthSessions',
+        'runs','runningPlanSessions','nutritionEntries','foodFavorites','mealTemplates','waterEntries'];
+    }
+    function newCollection(c) {
+      return c in ['coachProfiles','dailyRecovery','nutritionTargets','plannedActivities'];
+    }
+    function envelope() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['schemaVersion','revision','createdAt','updatedAt','payload'])
+        && d.keys().hasAll(['schemaVersion','revision','createdAt','updatedAt','payload'])
+        && d.schemaVersion == 1 && d.revision is int && d.revision > 0
+        && d.createdAt is timestamp && d.updatedAt == request.time && d.payload is map;
+    }
+    function optionalRange(v, lo, hi) { return v == null || (v is number && v >= lo && v <= hi); }
+    function date(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function validPayload(c) {
+      let p = request.resource.data.payload;
+      return (c == 'dailyRecovery'
+          && p.keys().hasOnly(['date','sleepHours','fatigue','soreness','pain','notes'])
+          && date(p.date) && optionalRange(p.sleepHours,0,24)
+          && optionalRange(p.fatigue,0,10) && optionalRange(p.soreness,0,10)
+          && p.pain in ['none','present','unknown'] && p.notes is string && p.notes.size() <= 1500)
+        || (c == 'nutritionTargets'
+          && p.keys().hasOnly(['date','type','kcal','proteinG']) && date(p.date)
+          && p.type in ['rest','strength','easy','quality','long','mixed']
+          && p.kcal is number && p.kcal > 0 && p.kcal <= 10000
+          && p.proteinG is number && p.proteinG >= 0 && p.proteinG <= 500)
+        || (c == 'plannedActivities'
+          && p.keys().hasOnly(['date','type','title','source','sourceId','status','distanceKm','details'])
+          && date(p.date) && p.type in ['strength','easy','quality','long']
+          && p.title is string && p.title.size() > 0 && p.title.size() <= 120
+          && p.source is string && p.source.size() > 0 && p.source.size() <= 80
+          && p.sourceId is string && p.sourceId.size() > 0 && p.sourceId.size() <= 100
+          && p.status in ['planned','skipped']
+          && optionalRange(p.distanceKm,0.1,200) && p.details is string && p.details.size() <= 2000)
+        || (c == 'coachProfiles'
+          && p.keys().hasOnly(['adult','goals','days','experience','minutes','strengthDays','runDays','equipment','recentTraining','preferences','nutrition','recovery','constraints','safety','aiConsent'])
+          && p.adult == true && p.goals is list && p.goals.size() > 0 && p.goals.size() <= 5
+          && p.goals.toSet().size() == p.goals.size()
+          && p.goals.toSet().hasOnly(['strength','glutes','running','recomposition','wellbeing'])
+          && p.days is list && p.days.size() > 0 && p.days.size() <= 7
+          && p.days.toSet().size() == p.days.size() && p.days.toSet().hasOnly([0,1,2,3,4,5,6])
+          && p.experience in ['beginner','returning','regular']
+          && p.minutes is number && p.minutes >= 15 && p.minutes <= 180
+          && p.strengthDays is int && p.strengthDays >= 0 && p.runDays is int && p.runDays >= 0
+          && p.strengthDays + p.runDays > 0 && p.strengthDays + p.runDays <= p.days.size()
+          && p.equipment is string && p.equipment.size() > 0 && p.equipment.size() <= 1000
+          && p.recentTraining is string && p.recentTraining.size() > 0 && p.recentTraining.size() <= 2000
+          && p.preferences is string && p.preferences.size() <= 1500
+          && p.nutrition is string && p.nutrition.size() <= 1500
+          && p.recovery is string && p.recovery.size() <= 1500
+          && p.constraints is string && p.constraints.size() <= 1500
+          && p.safety in ['none','review','undisclosed'] && p.aiConsent is bool);
+    }
+    match /accessGrants/{uid} {
+      allow get: if owner(uid);
+      allow list, write: if false;
+    }
+    // No recursive owner allow: it would bypass all validation below.
+    match /users/{uid}/{c}/{id} {
+      allow read: if member(uid) && (legacy(c) || newCollection(c)
+        || c in ['trainingPrograms','coachProposals']);
+      // Compatibility permission only, explicitly scoped to existing collections.
+      // Their legacy schemas still require a separate hardening/migration review.
+      allow write: if member(uid) && legacy(c);
+      allow create: if member(uid) && newCollection(c) && envelope() && validPayload(c)
+        && request.resource.data.revision == 1 && request.resource.data.createdAt == request.time;
+      allow update: if member(uid) && newCollection(c) && envelope() && validPayload(c)
+        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if member(uid) && newCollection(c);
+      // trainingPrograms/coachProposals/quotas/roles are server-writable only.
+    }
+  }
+}

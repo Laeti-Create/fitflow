@@ -1,4 +1,4 @@
-const APP_SHELL_VERSION = "0.53.0-develop.4";
+const APP_SHELL_VERSION = "0.54.0-develop.1";
 const SCOPE_URL = new URL(self.registration.scope);
 const BASE_PATH = SCOPE_URL.pathname.endsWith("/") ? SCOPE_URL.pathname : `${SCOPE_URL.pathname}/`;
 const CACHE_SCOPE = BASE_PATH.replace(/^\/+|\/+$/g, "").replaceAll("/", "-") || "root";
@@ -26,6 +26,7 @@ const CORE_FILES = [
   "app-shell.js",
   "auth-recovery.js",
   "firebase-config.js",
+  "hybrid/environment.mjs",
   "manifest.json",
   "icon.svg",
   "icon-192.png",
@@ -33,6 +34,12 @@ const CORE_FILES = [
 ];
 
 const FEATURE_FILES = [
+  "hybrid/workspace.js",
+  "hybrid/workspace.css",
+  "hybrid/domain.mjs",
+  "hybrid/session.mjs",
+  "hybrid/repository.mjs",
+  "hybrid/firebase-repository.js",
   "nutrition-enhancements.css",
   "running-plan.css",
   "running-guided.css",

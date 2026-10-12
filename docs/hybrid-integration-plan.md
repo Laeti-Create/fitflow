@@ -1,5 +1,9 @@
 # Hybrid integration: audit and staged implementation
 
+Update 2026-10-12: see `secure-coach-plan.md` for the revised accounts/AI scope
+and `PASSATION_CODEX.md` for current implementation, test evidence and remaining
+work. The original audit and lot-0 record below are retained as baseline history.
+
 Audit baseline: `develop` at `9df56d17a88ca0f256142a72f8ba4d0b768f77bd`.
 Working branch: `feature/glute-10k-hybrid`.
 

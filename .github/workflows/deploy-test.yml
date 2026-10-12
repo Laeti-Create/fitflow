@@ -40,11 +40,31 @@ jobs:
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
+            --exclude='.env*' \
+            --exclude='node_modules' \
+            --exclude='server' \
+            --exclude='scripts' \
+            --exclude='security' \
+            --exclude='tests' \
+            --exclude='docs' \
+            --exclude='test-results' \
+            --exclude='playwright-report' \
+            --exclude='*-debug.log' \
             stable/ public/
 
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
+            --exclude='.env*' \
+            --exclude='node_modules' \
+            --exclude='server' \
+            --exclude='scripts' \
+            --exclude='security' \
+            --exclude='tests' \
+            --exclude='docs' \
+            --exclude='test-results' \
+            --exclude='playwright-report' \
+            --exclude='*-debug.log' \
             test/ public/test/
 
           python3 - <<'PY'
