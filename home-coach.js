@@ -38,10 +38,6 @@ function setupFirebase() {
 
 const firebase = setupFirebase();
 
-function loadBarcodeScannerModule(){
-  import("./barcode-scanner.js").catch((error) => console.warn("Scanner code-barres non chargé :", error));
-}
-
 function currentSeasonConfig() {
   const month = new Date().getMonth() + 1;
 
@@ -322,15 +318,16 @@ async function refreshCoach(user) {
 }
 
 function initHomeCoach() {
-  loadBarcodeScannerModule();
   injectWalkIllustration();
   applyMessage(deterministicPick(fallbackMessages));
 
   if (!firebase) return;
 
+  let currentUser = null;
+  window.addEventListener("focus", () => refreshCoach(currentUser));
   onAuthStateChanged(firebase.auth, (user) => {
-    refreshCoach(user);
-    window.addEventListener("focus", () => refreshCoach(user));
+    currentUser = user;
+    refreshCoach(currentUser);
   });
 }
 

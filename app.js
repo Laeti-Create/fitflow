@@ -184,10 +184,7 @@ async function loadRemote() {
   const measurementsSnap = await getDocs(query(collection(firebase.db, "users", state.user.uid, "measurements"), orderBy("date", "asc")));
   state.measurements = measurementsSnap.docs.map((d) => ({ id:d.id, ...d.data() }));
 
-  if (!state.walks.length) state.walks = structuredClone(SAMPLE_WALKS);
-  if (!state.weights.length) state.weights = structuredClone(SAMPLE_WEIGHTS);
-  if (!state.strengthSessions.length) state.strengthSessions = structuredClone(SAMPLE_STRENGTH);
-  if (!state.measurements.length) state.measurements = structuredClone(SAMPLE_MEASUREMENTS);
+  // An authenticated empty collection is empty, not demonstration data.
 }
 
 function sortWalks() {
@@ -269,23 +266,42 @@ async function removeArrayEntry(arrayName, collectionName, index, confirmText) {
   if (!entry) return;
   if (!confirm(confirmText)) return;
 
-  state[arrayName].splice(index, 1);
-  await deleteEntry(collectionName, entry.id || null);
+  try {
+    if (firebase && state.user && entry.id) {
+      await deleteEntry(collectionName, entry.id);
+    }
+  } catch (error) {
+    console.warn("Suppression FitFlow échouée", error);
+    alert("Suppression impossible pour le moment. Tes données sont conservées.");
+    return false;
+  }
+  // Resolve the same entry again: another operation may have changed the index.
+  const currentIndex = state[arrayName].findIndex((item) => entry.id ? item.id === entry.id : item === entry);
+  if (currentIndex >= 0) state[arrayName].splice(currentIndex, 1);
+  if (!firebase || !state.user) saveLocal();
   render();
+  return true;
 }
 
 async function updateArrayEntry(arrayName, collectionName, index, updates, sorter) {
   const entry = state[arrayName][index];
   if (!entry) return;
 
-  state[arrayName][index] = {
-    ...entry,
-    ...updates
-  };
+  try {
+    if (firebase && state.user && entry.id) {
+      await updateEntry(collectionName, entry.id, updates);
+    }
+  } catch (error) {
+    console.warn("Modification FitFlow échouée", error);
+    alert("Modification impossible pour le moment. Tes données sont conservées.");
+    return false;
+  }
+  const currentIndex = state[arrayName].findIndex((item) => entry.id ? item.id === entry.id : item === entry);
+  if (currentIndex >= 0) state[arrayName][currentIndex] = { ...state[arrayName][currentIndex], ...updates };
   if (sorter) sorter();
-
-  await updateEntry(collectionName, entry.id || null, updates);
+  if (!firebase || !state.user) saveLocal();
   render();
+  return true;
 }
 
 async function saveProfile(profile) {
@@ -1075,6 +1091,8 @@ async function init() {
 
   onAuthStateChanged(firebase.auth, async (user) => {
     if (!user) {
+      state.user = null;
+      state.mode = "demo";
       showScreen("login");
       return;
     }

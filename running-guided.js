@@ -45,6 +45,7 @@ let phaseIndex=0;
 let phaseStartedAt=0;
 let pausedAt=0;
 let pausedTotal=0;
+let phasePausedTotal=0;
 let isPaused=false;
 let tickTimer=0;
 let totalStartedAt=0;
@@ -66,7 +67,7 @@ function elapsedTotal(){
 function phaseElapsed(){
   if(!phaseStartedAt) return 0;
   const end=isPaused ? pausedAt : Date.now();
-  return Math.max(0,(end-phaseStartedAt-pausedTotal)/1000);
+  return Math.max(0,(end-phaseStartedAt-phasePausedTotal)/1000);
 }
 
 function ensureOverlay(){
@@ -141,6 +142,8 @@ function openGuided(sessionId){
   current=workout;
   phaseIndex=0;
   pausedTotal=0;
+  phasePausedTotal=0;
+  pausedAt=0;
   isPaused=false;
   totalStartedAt=Date.now();
   phaseStartedAt=Date.now();
@@ -158,7 +161,7 @@ function closeGuided(){
   document.body.classList.remove("guided-open");
   resetState();
 }
-function resetState(){ current=null; phaseIndex=0; phaseStartedAt=0; totalStartedAt=0; pausedTotal=0; isPaused=false; }
+function resetState(){ current=null; phaseIndex=0; phaseStartedAt=0; totalStartedAt=0; pausedTotal=0; phasePausedTotal=0; pausedAt=0; isPaused=false; }
 function startTick(){ stopTick(); tickTimer=setInterval(tick,250); tick(); }
 function stopTick(){ clearInterval(tickTimer); tickTimer=0; }
 function currentPhase(){ return current?.phases?.[phaseIndex] || null; }
@@ -190,19 +193,23 @@ function updateDisplay(){
 function advancePhase(auto=false){
   if(!current) return;
   if(phaseIndex>=current.phases.length-1){ finishWorkout(); return; }
+  if(isPaused) pausedTotal+=Date.now()-pausedAt;
   phaseIndex+=1;
-  phaseStartedAt=Date.now(); pausedTotal=0; pausedAt=0; isPaused=false;
+  phaseStartedAt=Date.now(); phasePausedTotal=0; pausedAt=0; isPaused=false;
   renderPhase(); updateDisplay(); signal(auto?"phase":"phase");
 }
 function previousPhase(){
   if(!current || phaseIndex===0) return;
-  phaseIndex-=1; phaseStartedAt=Date.now(); pausedTotal=0; pausedAt=0; isPaused=false;
+  if(isPaused) pausedTotal+=Date.now()-pausedAt;
+  phaseIndex-=1; phaseStartedAt=Date.now(); phasePausedTotal=0; pausedAt=0; isPaused=false;
   renderPhase(); updateDisplay(); signal("phase");
 }
 function togglePause(){
   if(!current) return;
   if(isPaused){
-    pausedTotal+=Date.now()-pausedAt;
+    const pauseDuration=Date.now()-pausedAt;
+    pausedTotal+=pauseDuration;
+    phasePausedTotal+=pauseDuration;
     isPaused=false;
     requestWakeLock();
   }else{
